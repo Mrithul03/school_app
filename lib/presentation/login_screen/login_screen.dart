@@ -4,6 +4,10 @@ import 'package:app/api.dart';
 import '../../core/app_export.dart';
 import './widgets/login_form_widget.dart';
 import './widgets/app_logo_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app/api.dart';
+import 'package:app/presentation/parent_dashboard/parent_dashboard.dart';
+import 'package:app/presentation/parent_dashboard/parent_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,39 +24,85 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   String _selectedRole = 'parent';
 
-  void _handleLogin(String phone, String password, String schoolCode, String role) async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  final api = ApiService();
-
-  try {
-    final token = await api.login(
-      schoolCode: schoolCode,
-      phone: phone,
-      password: password,
-      role: role,
-    );
-
-    if (token.isNotEmpty) {
-      print("Login success: $token");
-
-      // TODO: Save token to SharedPreferences
-
-      // Navigate to the next screen
-      Navigator.pushReplacementNamed(context,  '/driver-dashboard');
-    }
-  } catch (e) {
-    print("Login failed: $e");
-    // TODO: Show a snackbar or alert with the error message
-  } finally {
+  void _handleLogin(
+      String phone, String password, String schoolCode, String role) async {
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
     });
-  }
-}
 
+    final api = ApiService();
+
+    try {
+      final response = await api.login(
+        schoolCode: schoolCode,
+        phone: phone,
+        password: password,
+        role: role,
+      );
+
+      final token = response['token'];
+      final userId = response['user_id'];
+      final userRole = response['role'];
+
+      if (token != null && token.toString().isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('device_token', token);
+        await prefs.setInt('user_id', userId);
+        await prefs.setString('user_role', userRole);
+        print("✔ Token: $token");
+        print("✔ UserID: $userId");
+        print("✔ Role: $userRole");
+
+        final userData = await api.fetchCurrentUser(token);
+
+        final vehicleId = userData?['vehicle']?['id'];
+        if (vehicleId != null) {
+          await prefs.setInt('vehicle_id', vehicleId);
+          print("🚐 vehicleId extracted: $vehicleId");
+          // null safe
+
+          if (userRole.toLowerCase() == 'driver') {
+            print('➡️ loged In Navigating to ParentDashboard');
+            Navigator.pushReplacementNamed(
+              context,
+              '/parent-dashboard',
+              arguments: {'vehicle_id': vehicleId},
+            );
+          }
+        } else if (userRole.toLowerCase() == 'parent') {
+          print('➡️ loged In Navigating to DriverDashboard');
+          Navigator.pushReplacementNamed(
+            context,
+            '/driver-dashboard',
+            arguments: {'vehicle_id': vehicleId},
+          );
+        } else {
+          print('➡️ loged In Navigating to loginDashboard');
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      }
+    } catch (e) {
+      print("Login failed: $e");
+      // Show error snackbar
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('device_token');
+    await prefs.remove('user_id');
+    await prefs.remove('user_role');
+    await prefs.remove('vehicle_id');
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

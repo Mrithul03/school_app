@@ -24,7 +24,8 @@ environment:
 
 dependencies:
   flutter:       # 🚨 CRITICAL: Required for every Flutter project - DO NOT REMOVE
-    sdk: flutter # 🚨 CRITICAL: Required for every Flutter project - DO NOT REMOVE
+    sdk: flutter
+ # 🚨 CRITICAL: Required for every Flutter project - DO NOT REMOVE
   
   # 🚨 CRITICAL: Core UI and responsive design - DO NOT REMOVE OR MODIFY
   http: ^1.2.1 
@@ -33,6 +34,11 @@ dependencies:
   google_fonts: ^6.1.0       # Required for typography (replaces local fonts)
   shared_preferences: ^2.2.2 # Required for local data storage
   web: ^1.1.1
+  google_maps_flutter: ^2.5.0
+  location: ^5.0.3
+  geolocator: ^10.0.0
+  web_socket_channel: ^2.4.0
+  permission_handler: ^11.0.0
   
   # Feature dependencies - safe to modify
   cached_network_image: ^3.3.1
@@ -40,6 +46,15 @@ dependencies:
   dio: ^5.4.0
   fluttertoast: ^8.2.4
   fl_chart: ^0.65.0
+  firebase_core: ^2.31.0
+  firebase_database: ^10.5.7
+  firebase_analytics: ^10.10.0
+  firebase_messaging: ^14.7.4
+  
+  
+
+
+   
 
 dev_dependencies:
   flutter_test:    # 🚨 CRITICAL: Required for Flutter project testing - DO NOT REMOVE

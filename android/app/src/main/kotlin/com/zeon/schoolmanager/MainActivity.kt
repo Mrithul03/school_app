@@ -1,4 +1,4 @@
-package com.example.app
+package com.zeon.schoolmanager
 
 import io.flutter.embedding.android.FlutterActivity
 

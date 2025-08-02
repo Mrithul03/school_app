@@ -6,9 +6,11 @@ import './widgets/child_status_card.dart';
 import './widgets/current_trip_status_card.dart';
 import './widgets/notification_card.dart';
 import './widgets/quick_action_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ParentDashboard extends StatefulWidget {
-  const ParentDashboard({Key? key}) : super(key: key);
+  final int vehicleId;
+  const ParentDashboard({Key? key, required this.vehicleId}) : super(key: key);
 
   @override
   State<ParentDashboard> createState() => _ParentDashboardState();
@@ -302,7 +304,11 @@ class _ParentDashboardState extends State<ParentDashboard>
             CurrentTripStatusCard(
               tripData: currentTripData,
               onTap: () {
-                Navigator.pushNamed(context, '/live-trip-tracking');
+                Navigator.pushNamed(
+                  context,
+                  '/live-trip-tracking',
+                  arguments: {'vehicleId': widget.vehicleId},
+                );
               },
             ),
 
@@ -617,10 +623,18 @@ class _ParentDashboardState extends State<ParentDashboard>
                   subtitle: 'Sign out of your account',
                   iconName: 'logout',
                   iconColor: Theme.of(context).colorScheme.error,
-                  onTap: () {
+                  onTap: () async {
+                    // ✅ Remove token and user_type from SharedPreferences
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('device_token');
+                    await prefs.remove('user_id');
+                    await prefs.remove('user_role');
+                    await prefs.remove('vehicle_id');
+
+                    Navigator.pop(context); // Close the dialog
                     Navigator.pushNamedAndRemoveUntil(
                       context,
-                      '/login-screen',
+                      '/login',
                       (route) => false,
                     );
                   },

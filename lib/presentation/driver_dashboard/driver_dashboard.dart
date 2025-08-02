@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
-import './widgets/active_trip_status.dart';
+// import './widgets/active_trip_status.dart';
 import './widgets/emergency_contact_dialog.dart';
 import './widgets/quick_actions_bar.dart';
 import './widgets/shift_status_card.dart';
 import './widgets/student_card.dart';
 
+import '../../core/services/driver_location_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 class DriverDashboard extends StatefulWidget {
+  final int vehicleId;
+  const DriverDashboard({Key? key, required this.vehicleId}) : super(key: key);
+
   @override
   _DriverDashboardState createState() => _DriverDashboardState();
 }
@@ -16,11 +24,42 @@ class DriverDashboard extends StatefulWidget {
 class _DriverDashboardState extends State<DriverDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  bool _isMorningShiftActive = true;
+  bool _isMorningShiftActive = false;
   bool _isEveningShiftActive = false;
-  bool _isOnTrip = true;
+  bool _isOnTrip = false;
 
-  // Mock data for students
+  int? vehicleId;
+  late LocationTracker _tracker;
+  bool _isTracking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tracker = LocationTracker(vehicleId: widget.vehicleId);
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  void _startTracking(String shiftType) {
+    print("🔄 Start tracking for $shiftType shift");
+
+    // Optionally send vehicle ID, shift type, timestamp
+    _tracker.startTracking(); // Implement actual tracking logic here
+
+    setState(() {
+      _isTracking = true;
+    });
+  }
+
+  void _stopTracking(String shiftType) {
+    print("🛑 Stop tracking for $shiftType shift");
+
+    _tracker.stopTracking(); // Implement stop logic here
+
+    setState(() {
+      _isTracking = false;
+    });
+  }
+
   final List<Map<String, dynamic>> _students = [
     {
       "id": 1,
@@ -119,12 +158,6 @@ class _DriverDashboardState extends State<DriverDashboard>
     },
     {"name": "Medical Emergency", "type": "Medical", "phone": "911"}
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
 
   @override
   void dispose() {
@@ -233,27 +266,6 @@ class _DriverDashboardState extends State<DriverDashboard>
           _buildProfileTab(),
         ],
       ),
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              onPressed: _isOnTrip ? null : _startTrip,
-              backgroundColor: _isOnTrip
-                  ? AppTheme.lightTheme.colorScheme.outline
-                  : AppTheme.getSuccessColor(true),
-              foregroundColor: Colors.white,
-              icon: CustomIconWidget(
-                iconName: _isOnTrip ? 'directions_bus' : 'play_arrow',
-                color: Colors.white,
-                size: 5.w,
-              ),
-              label: Text(
-                _isOnTrip ? 'On Trip' : 'Start Trip',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          : null,
     );
   }
 
@@ -266,34 +278,43 @@ class _DriverDashboardState extends State<DriverDashboard>
         child: Column(
           children: [
             SizedBox(height: 2.h),
+
+            // 🚍 Morning Shift Card
             ShiftStatusCard(
               shiftType: 'Morning',
               isActive: _isMorningShiftActive,
-              onStartTrip: () => _toggleShift('morning', true),
-              onEndTrip: () => _toggleShift('morning', false),
+              onStartTrip: () {
+                _toggleShift('morning', true);
+                _startTracking('morning');
+              },
+              onEndTrip: () {
+                _toggleShift('morning', false);
+                _stopTracking('morning');
+              },
             ),
+
+            // 🌙 Evening Shift Card
             ShiftStatusCard(
               shiftType: 'Evening',
               isActive: _isEveningShiftActive,
-              onStartTrip: () => _toggleShift('evening', true),
-              onEndTrip: () => _toggleShift('evening', false),
+              onStartTrip: () {
+                _toggleShift('evening', true);
+                _startTracking('evening');
+              },
+              onEndTrip: () {
+                _toggleShift('evening', false);
+                _stopTracking('eveing');
+              },
             ),
-            ActiveTripStatus(
-              routeName: 'Route A - North District',
-              totalStudents: _students.length,
-              pickedUpCount:
-                  (_students.where((s) => s['isPresent'] == true).length),
-              dropOffCount:
-                  (_students.where((s) => s['isPresent'] == false).length),
-              estimatedTime: '25 min',
-              isActive: _isOnTrip,
-            ),
+
+            // ⚙️ Quick Actions
             QuickActionsBar(
               onNavigationTap: _openNavigation,
               onEmergencyTap: _showEmergencyContacts,
               onRefreshTap: _refreshData,
               onSettingsTap: _openSettings,
             ),
+
             SizedBox(height: 10.h),
           ],
         ),
@@ -881,7 +902,7 @@ class _DriverDashboardState extends State<DriverDashboard>
     );
   }
 
-  void _logout() {
+  void _logout() async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -893,9 +914,16 @@ class _DriverDashboardState extends State<DriverDashboard>
             child: Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/login-screen');
+            onPressed: () async {
+              // ✅ Remove token and user_type from SharedPreferences
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('device_token');
+              await prefs.remove('user_id');
+              await prefs.remove('user_role');
+              await prefs.remove('vehicle_id');
+
+              Navigator.pop(context); // Close the dialog
+              Navigator.pushReplacementNamed(context, '/login'); // Go to login
             },
             child: Text(
               'Logout',

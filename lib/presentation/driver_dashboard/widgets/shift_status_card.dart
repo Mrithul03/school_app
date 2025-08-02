@@ -17,6 +17,8 @@ class ShiftStatusCard extends StatelessWidget {
     this.onEndTrip,
   }) : super(key: key);
 
+  
+
   @override
   Widget build(BuildContext context) {
     return Container(

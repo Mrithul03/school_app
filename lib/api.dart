@@ -6,13 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static const String baseUrl =
       // 'http://127.0.0.1:8000/';
-      'http://192.168.1.17:8000/' ;// or your production URL
+      'http://192.168.1.17:8000'; // or your production URL
 
-  Future<String> login({
+  Future<Map<String, dynamic>> login({
     required String schoolCode,
     required String phone,
     required String password,
     required String role,
+    String? vehicle, 
   }) async {
     final url = Uri.parse('$baseUrl/api/login/');
 
@@ -24,32 +25,59 @@ class ApiService {
           'school_code': schoolCode,
           'phone': phone,
           'password': password,
-          'role' :role
+          'role': role,
+          if (vehicle != null) 'vehicle': vehicle, // <-- include only if present
+
         }),
       );
 
       print('👤 login response: ${response.body}');
 
-      final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map;
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
 
       if (response.statusCode == 200 && data.containsKey('token')) {
-        final token = data['token']; // ✅ Token from DRF
-        final userId = data['user_id'];
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('device_token', token);
-        await prefs.setInt('user_id', userId);
-
-        print("✅ Stored token: $token");
-        return token;
+        return {
+          'token': data['token'].toString(),
+          'user_id': data['user_id'],
+          'role': data['role'].toString(),
+          'name': data['name']?.toString() ?? '',
+          'phone': data['phone']?.toString() ?? '',
+        };
       } else {
-        print(
-            "⚠️ Login failed with status: ${response.statusCode}, body: ${response.body}");
+        throw Exception(data['error'] ?? 'Login failed');
       }
     } catch (e) {
       print('❗ Exception during login: $e');
+      throw Exception('Login failed: $e');
     }
-
-    return '';
   }
+  
+  Future<Map<String, dynamic>?> fetchCurrentUser(String token) async {
+  final url = Uri.parse('$baseUrl/api/user/me/'); // Replace with your actual API endpoint
+
+  final response = await http.get(
+    url,
+    headers: {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  print('📦 Response Status Code: ${response.statusCode}');
+  print('📨 Response Body: ${response.body}');
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    print('✅ User data fetched: $data');
+    return data;
+  } else {
+    print('❌ Failed to fetch user data: ${response.statusCode} - ${response.body}');
+    return null;
+  }
+}
+
+
+
+
 }
