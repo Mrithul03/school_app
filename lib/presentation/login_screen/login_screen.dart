@@ -61,24 +61,24 @@ class _LoginScreenState extends State<LoginScreen> {
           print("🚐 vehicleId extracted: $vehicleId");
           // null safe
 
-          if (userRole.toLowerCase() == 'driver') {
+          if (userRole.toLowerCase() == 'parent') {
             print('➡️ loged In Navigating to ParentDashboard');
             Navigator.pushReplacementNamed(
               context,
               '/parent-dashboard',
               arguments: {'vehicle_id': vehicleId},
             );
+          } else if (userRole.toLowerCase() == 'driver') {
+            print('➡️ loged In Navigating to DriverDashboard');
+            Navigator.pushReplacementNamed(
+              context,
+              '/driver-dashboard',
+              arguments: {'vehicle_id': vehicleId},
+            );
+          } else {
+            print('➡️ loged In Navigating to loginDashboard');
+            Navigator.pushReplacementNamed(context, '/login');
           }
-        } else if (userRole.toLowerCase() == 'parent') {
-          print('➡️ loged In Navigating to DriverDashboard');
-          Navigator.pushReplacementNamed(
-            context,
-            '/driver-dashboard',
-            arguments: {'vehicle_id': vehicleId},
-          );
-        } else {
-          print('➡️ loged In Navigating to loginDashboard');
-          Navigator.pushReplacementNamed(context, '/login');
         }
       }
     } catch (e) {

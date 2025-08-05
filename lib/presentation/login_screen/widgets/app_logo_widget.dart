@@ -8,10 +8,11 @@ class AppLogoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 80.w,
-      height: 20.h,
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 2.h),
       child: Column(
+        mainAxisSize:
+            MainAxisSize.min, // 👈 ensures it doesn't expand unnecessarily
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
@@ -24,7 +25,7 @@ class AppLogoWidget extends StatelessWidget {
             child: CustomIconWidget(
               iconName: 'directions_bus',
               color: Colors.white,
-              size: 48,
+              size: 46,
             ),
           ),
           SizedBox(height: 2.h),
@@ -36,7 +37,7 @@ class AppLogoWidget extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 0.5.h),
+          SizedBox(height: 0.8.h),
           Text(
             'Safe • Reliable • Connected',
             style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(

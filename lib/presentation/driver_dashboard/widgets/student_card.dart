@@ -28,7 +28,8 @@ class StudentCard extends StatelessWidget {
     final bool isPresent = student['isPresent'] ?? false;
     final bool hasSpecialNotes =
         (student['specialNotes'] as String?)?.isNotEmpty ?? false;
-    final bool hasMedicalAlert = student['hasMedicalAlert'] ?? false;
+    // final bool hasMedicalAlert = student['hasMedicalAlert'] ?? false;
+    final String student_name = student['student_name'] as String? ?? 'N/A';
 
     return Dismissible(
       key: Key('student_${student['id']}'),
@@ -113,23 +114,23 @@ class StudentCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (hasMedicalAlert)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        padding: EdgeInsets.all(1.w),
-                        decoration: BoxDecoration(
-                          color: AppTheme.lightTheme.colorScheme.error,
-                          shape: BoxShape.circle,
-                        ),
-                        child: CustomIconWidget(
-                          iconName: 'medical_services',
-                          color: Colors.white,
-                          size: 3.w,
-                        ),
-                      ),
-                    ),
+                  // if (hasMedicalAlert)
+                  //   Positioned(
+                  //     top: 0,
+                  //     right: 0,
+                  //     child: Container(
+                  //       padding: EdgeInsets.all(1.w),
+                  //       decoration: BoxDecoration(
+                  //         color: AppTheme.lightTheme.colorScheme.error,
+                  //         shape: BoxShape.circle,
+                  //       ),
+                  //       child: CustomIconWidget(
+                  //         iconName: 'medical_services',
+                  //         color: Colors.white,
+                  //         size: 3.w,
+                  //       ),
+                  //     ),
+                  //   ),
                 ],
               ),
               SizedBox(width: 4.w),
@@ -141,7 +142,7 @@ class StudentCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            student['name'] ?? 'Unknown Student',
+                            student['student_name'] ?? 'Student Options',
                             style: AppTheme.lightTheme.textTheme.titleMedium
                                 ?.copyWith(
                               fontWeight: FontWeight.w600,
@@ -169,30 +170,30 @@ class StudentCard extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: 1.h),
-                    Row(
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'location_on',
-                          color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                          size: 4.w,
-                        ),
-                        SizedBox(width: 1.w),
-                        Expanded(
-                          child: Text(
-                            student['pickupAddress'] ?? 'No address provided',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme
-                                  .lightTheme.colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 1.h),
+                    // Row(
+                    //   children: [
+                    //     CustomIconWidget(
+                    //       iconName: 'location_on',
+                    //       color:
+                    //           AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    //       size: 4.w,
+                    //     ),
+                    //     SizedBox(width: 1.w),
+                    //     Expanded(
+                    //       child: Text(
+                    //         student['pickupAddress'] ?? 'No address provided',
+                    //         style: AppTheme.lightTheme.textTheme.bodySmall
+                    //             ?.copyWith(
+                    //           color: AppTheme
+                    //               .lightTheme.colorScheme.onSurfaceVariant,
+                    //         ),
+                    //         maxLines: 2,
+                    //         overflow: TextOverflow.ellipsis,
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                    // SizedBox(height: 1.h),
                     Row(
                       children: [
                         Container(
@@ -306,7 +307,7 @@ class StudentCard extends StatelessWidget {
             ),
             SizedBox(height: 3.h),
             Text(
-              student['name'] ?? 'Student Options',
+              student['student_name'] ?? 'Student Options',
               style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

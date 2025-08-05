@@ -7,6 +7,7 @@ import './widgets/current_trip_status_card.dart';
 import './widgets/notification_card.dart';
 import './widgets/quick_action_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app/api.dart';
 
 class ParentDashboard extends StatefulWidget {
   final int vehicleId;
@@ -20,50 +21,95 @@ class _ParentDashboardState extends State<ParentDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isRefreshing = false;
+  Map<String, dynamic>? currentTripData;
+  List<Map<String, dynamic>> childrenData = [];
 
-  // Mock data for current trip
-  final Map<String, dynamic> currentTripData = {
-    "status": "On Route",
-    "driverName": "Michael Johnson",
-    "vehicleNumber": "BUS-247",
-    "estimatedTime": "8:15 AM",
-    "tripType": "Morning",
-    "route": "Route A - Elementary",
-  };
 
-  // Mock data for children
-  final List<Map<String, dynamic>> childrenData = [
-    {
-      "id": 1,
-      "name": "Emma Rodriguez",
-      "status": "Picked Up",
-      "estimatedTime": "8:15 AM",
-      "photoUrl":
-          "https://images.pexels.com/photos/1462630/pexels-photo-1462630.jpeg?auto=compress&cs=tinysrgb&w=400",
-      "grade": "Grade 3",
-      "school": "Riverside Elementary",
-    },
-    {
-      "id": 2,
-      "name": "Lucas Rodriguez",
-      "status": "In Transit",
-      "estimatedTime": "8:20 AM",
-      "photoUrl":
-          "https://images.pexels.com/photos/1416736/pexels-photo-1416736.jpeg?auto=compress&cs=tinysrgb&w=400",
-      "grade": "Grade 5",
-      "school": "Riverside Elementary",
-    },
-    {
-      "id": 3,
-      "name": "Sofia Rodriguez",
-      "status": "Waiting",
-      "estimatedTime": "8:25 AM",
-      "photoUrl":
-          "https://images.pexels.com/photos/1462637/pexels-photo-1462637.jpeg?auto=compress&cs=tinysrgb&w=400",
-      "grade": "Grade 1",
-      "school": "Riverside Elementary",
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('device_token');
+
+    if (token != null && token.isNotEmpty) {
+      final api = ApiService();
+      final data = await api.fetchCurrentUser(token);
+      print('LoadUserData:$data');
+
+      if (data != null) {
+        setState(() {
+          currentTripData = {
+            'status': 'Running', // or from API if available
+            'driver': data['vehicle']?['driver'],
+            'vehicle_number': data['vehicle']?['vehicle_number'],
+            'student_name': data['student']?['name'],
+            'parent': data['student']?['parent'],
+            'school': data['school']?['name'],
+          };
+          childrenData = [
+            {
+              'status': 'Running', // or from API if available
+              'driver': data['vehicle']?['driver'],
+              'vehicle_number': data['vehicle']?['vehicle_number'],
+              'student_name': data['student']?['name'],
+            }
+          ];
+
+          print('currentTripData:$currentTripData');
+          print('currentTripData:$childrenData');
+        });
+      }
+    }
+  }
+
+  // // Mock data for current trip
+  // final Map<String, dynamic> currentTripData = {
+  //   "status": currentTripData['status'] ,
+  //   "driver": currentTripData['driver'] ,
+  //   "vehicle_number":currentTripData['vehicle_number'] ,
+
+  //   "tripType": "Morning",
+  //   "route": "Route A - Elementary",
+  // };
+
+  // // Mock data for children
+  // final List<Map<String, dynamic>> childrenData = [
+  //   {
+  //     "id": 1,
+  //     "name": "Emma Rodriguez",
+  //     "status": "Picked Up",
+  //     "estimatedTime": "8:15 AM",
+  //     "photoUrl":
+  //         "https://images.pexels.com/photos/1462630/pexels-photo-1462630.jpeg?auto=compress&cs=tinysrgb&w=400",
+  //     "grade": "Grade 3",
+  //     "school": "Riverside Elementary",
+  //   },
+  //   {
+  //     "id": 2,
+  //     "name": "Lucas Rodriguez",
+  //     "status": "In Transit",
+  //     "estimatedTime": "8:20 AM",
+  //     "photoUrl":
+  //         "https://images.pexels.com/photos/1416736/pexels-photo-1416736.jpeg?auto=compress&cs=tinysrgb&w=400",
+  //     "grade": "Grade 5",
+  //     "school": "Riverside Elementary",
+  //   },
+  //   {
+  //     "id": 3,
+  //     "name": "Sofia Rodriguez",
+  //     "status": "Waiting",
+  //     "estimatedTime": "8:25 AM",
+  //     "photoUrl":
+  //         "https://images.pexels.com/photos/1462637/pexels-photo-1462637.jpeg?auto=compress&cs=tinysrgb&w=400",
+  //     "grade": "Grade 1",
+  //     "school": "Riverside Elementary",
+  //   },
+  // ];
 
   // Mock data for notifications
   final List<Map<String, dynamic>> notificationsData = [
@@ -93,12 +139,6 @@ class _ParentDashboardState extends State<ParentDashboard>
       "isRead": false,
     },
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
 
   @override
   void dispose() {
@@ -180,8 +220,9 @@ class _ParentDashboardState extends State<ParentDashboard>
             Tab(
               icon: CustomIconWidget(
                 iconName: 'home',
-                color:
-                    isDarkMode ? AppTheme.primaryDark : AppTheme.primaryLight,
+                color: isDarkMode
+                    ? AppTheme.primaryDark
+                    : Color.fromARGB(255, 255, 255, 255),
                 size: 24,
               ),
               text: 'Home',
@@ -190,8 +231,8 @@ class _ParentDashboardState extends State<ParentDashboard>
               icon: CustomIconWidget(
                 iconName: 'directions_bus',
                 color: isDarkMode
-                    ? AppTheme.textSecondaryDark
-                    : AppTheme.textSecondaryLight,
+                    ? const Color.fromARGB(255, 245, 240, 240)
+                    : const Color.fromARGB(255, 255, 255, 255),
                 size: 24,
               ),
               text: 'Trips',
@@ -200,8 +241,8 @@ class _ParentDashboardState extends State<ParentDashboard>
               icon: CustomIconWidget(
                 iconName: 'message',
                 color: isDarkMode
-                    ? AppTheme.textSecondaryDark
-                    : AppTheme.textSecondaryLight,
+                    ? const Color.fromARGB(255, 255, 255, 255)
+                    : const Color.fromARGB(255, 255, 255, 255),
                 size: 24,
               ),
               text: 'Messages',
@@ -210,13 +251,16 @@ class _ParentDashboardState extends State<ParentDashboard>
               icon: CustomIconWidget(
                 iconName: 'person',
                 color: isDarkMode
-                    ? AppTheme.textSecondaryDark
-                    : AppTheme.textSecondaryLight,
+                    ? const Color.fromARGB(255, 255, 255, 255)
+                    : const Color.fromARGB(255, 255, 255, 255),
                 size: 24,
               ),
               text: 'Profile',
             ),
           ],
+          labelColor: Colors.white, // 👈 selected tab text color
+          unselectedLabelColor: Colors.white70, // 👈 unselected tab text color
+          indicatorColor: Colors.white,
         ),
       ),
       body: TabBarView(
@@ -300,65 +344,44 @@ class _ParentDashboardState extends State<ParentDashboard>
           children: [
             SizedBox(height: 2.h),
 
-            // Current Trip Status
-            CurrentTripStatusCard(
-              tripData: currentTripData,
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  '/live-trip-tracking',
-                  arguments: {'vehicleId': widget.vehicleId},
-                );
-              },
-            ),
-
-            SizedBox(height: 2.h),
-
             // Children Section
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Children Status',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      _tabController.animateTo(1);
-                    },
-                    child: Text('View All'),
-                  ),
-                ],
-              ),
-            ),
+            // ListView.builder(
+            //   shrinkWrap: true,
+            //   physics: NeverScrollableScrollPhysics(),
+            //   itemCount: childrenData.length,
+            //   itemBuilder: (context, index) {
+            //     final child = childrenData[index];
+            //     return ChildStatusCard(
+            //       childData: child,
+            //       onTap: () {
+            //         Navigator.pushNamed(context, '/live-trip-tracking');
+            //       },
+            //       onContactDriver: () {
+            //         ScaffoldMessenger.of(context).showSnackBar(
+            //           SnackBar(
+            //             content: Text('Calling driver...'),
+            //             behavior: SnackBarBehavior.floating,
+            //           ),
+            //         );
+            //       },
+            //     );
+            //   },
+            // ),
 
-            // Children List
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: childrenData.length,
-              itemBuilder: (context, index) {
-                final child = childrenData[index];
-                return ChildStatusCard(
-                  childData: child,
-                  onTap: () {
-                    Navigator.pushNamed(context, '/live-trip-tracking');
-                  },
-                  onContactDriver: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Calling driver...'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+            // SizedBox(height: 2.h),
+
+            // Current Trip Status
+            if (currentTripData != null)
+              CurrentTripStatusCard(
+                tripData: currentTripData!,
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    '/live-trip-tracking',
+                    arguments: {'vehicleId': widget.vehicleId},
+                  );
+                },
+              ),
 
             SizedBox(height: 2.h),
 

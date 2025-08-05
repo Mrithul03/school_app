@@ -1,34 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/app_export.dart';
+import 'package:app/api.dart';
+
+/// ✅ Fetch current user function (copied from your API file)
 
 class CurrentTripStatusCard extends StatelessWidget {
   final Map<String, dynamic> tripData;
   final VoidCallback? onTap;
 
-  const CurrentTripStatusCard({
+  CurrentTripStatusCard({
     Key? key,
     required this.tripData,
     this.onTap,
-  }) : super(key: key);
+  }) : super(key: key) {
+    debugPrint("✅ tripData: $tripData");
+  }
 
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final String status = tripData['status'] as String? ?? 'Unknown';
-    final String driverName =
-        tripData['driverName'] as String? ?? 'Unknown Driver';
-    final String vehicleNumber = tripData['vehicleNumber'] as String? ?? 'N/A';
+    final String driverName = tripData['driver'] as String? ?? 'Unknown Driver';
+    final String vehicleNumber = tripData['vehicle_number'] as String? ?? 'N/A';
+    final String student_name = tripData['student_name'] as String? ?? 'N/A';
+    final String parent = tripData['parent'] as String? ?? 'N/A';
+    final String schoolname = tripData['school'] as String? ?? 'N/A';
     final String estimatedTime =
         tripData['estimatedTime'] as String? ?? '--:--';
-    final String tripType = tripData['tripType'] as String? ?? 'Morning';
+    // final String tripType = tripData['tripType'] as String? ?? 'Morning';
 
     Color _getStatusColor() {
       switch (status.toLowerCase()) {
-        case 'on route':
+        case 'start':
           return AppTheme.getSuccessColor(!isDarkMode);
-        case 'delayed':
+        case 'stop':
           return AppTheme.getWarningColor(!isDarkMode);
         case 'arrived':
           return isDarkMode ? AppTheme.primaryDark : AppTheme.primaryLight;
@@ -77,7 +87,7 @@ class CurrentTripStatusCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '$tripType Trip',
+                    '$student_name',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: isDarkMode
@@ -90,7 +100,7 @@ class CurrentTripStatusCard extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                   decoration: BoxDecoration(
-                    color: _getStatusColor().withValues(alpha: 0.1),
+                    color: _getStatusColor().withAlpha(25),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -123,6 +133,28 @@ class CurrentTripStatusCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
+                        'Parent',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: isDarkMode
+                                  ? AppTheme.textSecondaryDark
+                                  : AppTheme.textSecondaryLight,
+                            ),
+                      ),
+                      SizedBox(height: 0.5.h),
+
+                      Text(
+                        parent,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: isDarkMode
+                                  ? AppTheme.textPrimaryDark
+                                  : AppTheme.textPrimaryLight,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 0.5.h),
+
+                      Text(
                         'Driver',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: isDarkMode
@@ -131,6 +163,7 @@ class CurrentTripStatusCard extends StatelessWidget {
                             ),
                       ),
                       SizedBox(height: 0.5.h),
+                      
                       Text(
                         driverName,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -149,6 +182,25 @@ class CurrentTripStatusCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'School',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: isDarkMode
+                                  ? AppTheme.textSecondaryDark
+                                  : AppTheme.textSecondaryLight,
+                            ),
+                      ),
+                      SizedBox(height: 0.5.h),
+                      Text(
+                        schoolname,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: isDarkMode
+                                  ? AppTheme.textPrimaryDark
+                                  : AppTheme.textPrimaryLight,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Text(
                         'Vehicle',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -180,13 +232,13 @@ class CurrentTripStatusCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color:
                     (isDarkMode ? AppTheme.primaryDark : AppTheme.primaryLight)
-                        .withValues(alpha: 0.1),
+                        .withAlpha(25),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
                   Text(
-                    'Estimated Arrival',
+                    '',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: isDarkMode
                               ? AppTheme.textSecondaryDark

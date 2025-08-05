@@ -112,6 +112,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -126,9 +127,10 @@ class LiveTripTrackingScreen extends StatefulWidget {
 
 class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
   Timer? _pollingTimer;
-  double? _latitude;
-  double? _longitude;
+  LatLng? _currentPosition;
   String _status = 'Fetching location...';
+
+  late GoogleMapController _mapController;
 
   @override
   void initState() {
@@ -161,11 +163,15 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
         final lng = double.tryParse(data['longitude'].toString());
 
         if (lat != null && lng != null) {
+          final newPosition = LatLng(lat, lng);
           setState(() {
-            _latitude = lat;
-            _longitude = lng;
+            _currentPosition = newPosition;
             _status = 'Location fetched successfully!';
           });
+
+          _mapController.animateCamera(
+            CameraUpdate.newLatLng(newPosition),
+          );
         } else {
           setState(() {
             _status = 'Invalid coordinates received';
@@ -192,24 +198,24 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Vehicle Location')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: _latitude == null || _longitude == null
-              ? Text(_status)
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Latitude: $_latitude', style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 10),
-                    Text('Longitude: $_longitude', style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 20),
-                    Text(_status, style: const TextStyle(color: Colors.grey)),
-                  ],
+      appBar: AppBar(title: const Text('Live Vehicle Tracking')),
+      body: _currentPosition == null
+          ? Center(child: Text(_status))
+          : GoogleMap(
+              onMapCreated: (controller) => _mapController = controller,
+              initialCameraPosition: CameraPosition(
+                target: _currentPosition!,
+                zoom: 16,
+              ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('vehicle'),
+                  position: _currentPosition!,
+                  infoWindow: const InfoWindow(title: 'Vehicle Location'),
                 ),
-        ),
-      ),
+              },
+            ),
     );
   }
 }
+

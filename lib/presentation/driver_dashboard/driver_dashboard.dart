@@ -12,6 +12,7 @@ import '../../core/services/driver_location_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app/api.dart';
 
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
@@ -27,6 +28,8 @@ class _DriverDashboardState extends State<DriverDashboard>
   bool _isMorningShiftActive = false;
   bool _isEveningShiftActive = false;
   bool _isOnTrip = false;
+  List<Map<String, dynamic>> _students = [];
+  List<Map<String, dynamic>> childrenData = [];
 
   int? vehicleId;
   late LocationTracker _tracker;
@@ -37,6 +40,7 @@ class _DriverDashboardState extends State<DriverDashboard>
     super.initState();
     _tracker = LocationTracker(vehicleId: widget.vehicleId);
     _tabController = TabController(length: 4, vsync: this);
+    _loadUser();
   }
 
   void _startTracking(String shiftType) {
@@ -60,68 +64,105 @@ class _DriverDashboardState extends State<DriverDashboard>
     });
   }
 
-  final List<Map<String, dynamic>> _students = [
-    {
-      "id": 1,
-      "name": "Emma Johnson",
-      "photo":
-          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "pickupAddress": "123 Oak Street, Springfield",
-      "grade": "5",
-      "isPresent": true,
-      "specialNotes": "Allergic to peanuts",
-      "hasMedicalAlert": true,
-      "parentPhone": "+1 (555) 123-4567"
-    },
-    {
-      "id": 2,
-      "name": "Michael Chen",
-      "photo":
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "pickupAddress": "456 Maple Avenue, Springfield",
-      "grade": "4",
-      "isPresent": false,
-      "specialNotes": "",
-      "hasMedicalAlert": false,
-      "parentPhone": "+1 (555) 234-5678"
-    },
-    {
-      "id": 3,
-      "name": "Sophia Rodriguez",
-      "photo":
-          "https://images.unsplash.com/photo-1494790108755-2616b612b786?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "pickupAddress": "789 Pine Road, Springfield",
-      "grade": "6",
-      "isPresent": true,
-      "specialNotes": "Needs assistance with wheelchair",
-      "hasMedicalAlert": false,
-      "parentPhone": "+1 (555) 345-6789"
-    },
-    {
-      "id": 4,
-      "name": "James Wilson",
-      "photo":
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "pickupAddress": "321 Elm Street, Springfield",
-      "grade": "3",
-      "isPresent": false,
-      "specialNotes": "",
-      "hasMedicalAlert": false,
-      "parentPhone": "+1 (555) 456-7890"
-    },
-    {
-      "id": 5,
-      "name": "Olivia Davis",
-      "photo":
-          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
-      "pickupAddress": "654 Cedar Lane, Springfield",
-      "grade": "5",
-      "isPresent": true,
-      "specialNotes": "Early pickup required",
-      "hasMedicalAlert": false,
-      "parentPhone": "+1 (555) 567-8901"
+  Future<void> _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('device_token');
+
+    if (token != null && token.isNotEmpty) {
+      final api = ApiService();
+      final data = await api.fetchCurrentUser(token);
+      print('LoadUserData:$data');
+
+      if (data != null) {
+        setState(() {
+          _students = [
+            {
+              'status': 'Running', // or from API if available
+              'driver': data['vehicle']?['driver'],
+              'vehicle_number': data['vehicle']?['vehicle_number'],
+              'student_name': data['student']?['name'],
+              'parent': data['student']?['parent'],
+              'school': data['school']?['name'],
+            }
+          ];
+          childrenData = [
+            {
+              'status': 'Running', // or from API if available
+              'driver': data['vehicle']?['driver'],
+              'vehicle_number': data['vehicle']?['vehicle_number'],
+              'student_name': data['student']?['name'],
+            }
+          ];
+
+          print('studentdatata:$_students');
+          print('currentTripData:$childrenData');
+        });
+      }
     }
-  ];
+  }
+
+  // final List<Map<String, dynamic>> _students = [
+  //   {
+  //     "id": 1,
+  //     "name": "Emma Johnson",
+  //     "photo":
+  //         "https://images.unsplash.com/photo-1544005313-94ddf0286df2?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
+  //     "pickupAddress": "123 Oak Street, Springfield",
+  //     "grade": "5",
+  //     "isPresent": true,
+  //     "specialNotes": "Allergic to peanuts",
+  //     "hasMedicalAlert": true,
+  //     "parentPhone": "+1 (555) 123-4567"
+  //   },
+  //   {
+  //     "id": 2,
+  //     "name": "Michael Chen",
+  //     "photo":
+  //         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
+  //     "pickupAddress": "456 Maple Avenue, Springfield",
+  //     "grade": "4",
+  //     "isPresent": false,
+  //     "specialNotes": "",
+  //     "hasMedicalAlert": false,
+  //     "parentPhone": "+1 (555) 234-5678"
+  //   },
+  //   {
+  //     "id": 3,
+  //     "name": "Sophia Rodriguez",
+  //     "photo":
+  //         "https://images.unsplash.com/photo-1494790108755-2616b612b786?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
+  //     "pickupAddress": "789 Pine Road, Springfield",
+  //     "grade": "6",
+  //     "isPresent": true,
+  //     "specialNotes": "Needs assistance with wheelchair",
+  //     "hasMedicalAlert": false,
+  //     "parentPhone": "+1 (555) 345-6789"
+  //   },
+  //   {
+  //     "id": 4,
+  //     "name": "James Wilson",
+  //     "photo":
+  //         "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
+  //     "pickupAddress": "321 Elm Street, Springfield",
+  //     "grade": "3",
+  //     "isPresent": false,
+  //     "specialNotes": "",
+  //     "hasMedicalAlert": false,
+  //     "parentPhone": "+1 (555) 456-7890"
+  //   },
+  //   {
+  //     "id": 5,
+  //     "name": "Olivia Davis",
+  //     "photo":
+  //         "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3",
+  //     "pickupAddress": "654 Cedar Lane, Springfield",
+  //     "grade": "5",
+  //     "isPresent": true,
+  //     "specialNotes": "Early pickup required",
+  //     "hasMedicalAlert": false,
+  //     "parentPhone": "+1 (555) 567-8901"
+  //   }
+  // ];
 
   // Mock data for routes
   final List<Map<String, dynamic>> _routes = [
