@@ -43,4 +43,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-"android/app/*.json" 
+/android/app/*.json
+ /android/app/school-manager-aeaf5-firebase-adminsdk-fbsvc-22ea12d569.json:1
