@@ -45,6 +45,7 @@ class _DriverDashboardState extends State<DriverDashboard>
 
   void _startTracking(String shiftType) {
     print("🔄 Start tracking for $shiftType shift");
+    
 
     // Optionally send vehicle ID, shift type, timestamp
     _tracker.startTracking(); // Implement actual tracking logic here

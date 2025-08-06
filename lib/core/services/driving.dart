@@ -20,7 +20,9 @@ class LocationTracker {
 
   LocationTracker({
     required this.vehicleId,
-    this.baseUrl = 'http://192.168.1.17:8000',
+    // this.baseUrl = 'http://192.168.1.17:8000',
+    this.baseUrl = 'https://myblogcrud.pythonanywhere.com'
+    
   });
 
   Future<bool> _checkPermissions() async {

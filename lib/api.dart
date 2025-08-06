@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static const String baseUrl =
       // 'http://127.0.0.1:8000/';
-      'http://192.168.1.17:8000'; // or your production URL
+      // 'http://192.168.1.17:8000';
+      'https://myblogcrud.pythonanywhere.com' ; // or your production URL
 
   Future<Map<String, dynamic>> login({
     required String schoolCode,

@@ -25,6 +25,7 @@ environment:
 dependencies:
   flutter:       # 🚨 CRITICAL: Required for every Flutter project - DO NOT REMOVE
     sdk: flutter
+
  # 🚨 CRITICAL: Required for every Flutter project - DO NOT REMOVE
   
   # 🚨 CRITICAL: Core UI and responsive design - DO NOT REMOVE OR MODIFY
@@ -40,6 +41,7 @@ dependencies:
   web_socket_channel: ^2.4.0
   permission_handler: ^11.0.0
   
+  
   # Feature dependencies - safe to modify
   cached_network_image: ^3.3.1
   connectivity_plus: ^6.1.4
@@ -50,6 +52,8 @@ dependencies:
   firebase_database: ^10.5.7
   firebase_analytics: ^10.10.0
   firebase_messaging: ^14.7.4
+  flutter_background_service: ^5.0.5
+
   
   
 

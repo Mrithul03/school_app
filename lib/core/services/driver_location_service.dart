@@ -3,25 +3,25 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:firebase_database/firebase_database.dart'; // ✅
+import 'package:firebase_database/firebase_database.dart';
 
 class LocationTracker {
   final int vehicleId;
   final String baseUrl;
-  StreamSubscription<Position>? _positionStream;
 
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref(); // ✅
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
   int _updateCount = 0;
   int _failureCount = 0;
   final int maxFailures = 10;
 
+  Timer? _backgroundTimer; // ✅ EDITED
+
   LocationTracker({
     required this.vehicleId,
-    this.baseUrl = 'http://192.168.1.17:8000', // Update IP for production
+    this.baseUrl = 'https://myblogcrud.pythonanywhere.com',
   });
 
   Future<bool> _checkPermissions() async {
@@ -48,19 +48,15 @@ class LocationTracker {
     final hasPermission = await _checkPermissions();
     if (!hasPermission) return;
 
-    // First API call to indicate ride start
     await _sendLocationOnce(status: status);
 
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen(
-      (Position position) async {
+    // ✅ EDITED: Use Timer instead of StreamSubscription for background safety
+    _backgroundTimer?.cancel();
+    _backgroundTimer = Timer.periodic(Duration(seconds: 1), (_) async {
+      try {
+        final position = await Geolocator.getCurrentPosition();
         _updateCount++;
-        print(
-            "📍 ($_updateCount) Location: ${position.latitude}, ${position.longitude}");
+        print("📍 ($_updateCount) BG Location: ${position.latitude}, ${position.longitude}");
 
         final success = await _sendLocationUpdate(
           latitude: position.latitude,
@@ -71,7 +67,6 @@ class LocationTracker {
         if (!success) {
           _failureCount++;
           print("⚠️ ($_failureCount/$maxFailures) Failed update");
-
           if (_failureCount >= maxFailures) {
             await stopTracking(status: "stop");
             print("❌ Too many failures, auto-stopping tracking");
@@ -79,14 +74,12 @@ class LocationTracker {
         } else {
           _failureCount = 0;
         }
-      },
-      onError: (error) {
-        print("⚠️ Location stream error: $error");
-      },
-      cancelOnError: false,
-    );
+      } catch (e) {
+        print("❌ BG location error: $e");
+      }
+    });
 
-    print("🚚 Location tracking started.");
+    print("🚚 Background location tracking started.");
   }
 
   Future<bool> _sendLocationUpdate({
@@ -122,31 +115,6 @@ class LocationTracker {
     }
   }
 
-  // Future<bool> _sendLocationUpdate({
-  //   required double latitude,
-  //   required double longitude,
-  //   required String status,
-  // }) async {
-  //   try {
-  //     final timestamp = DateTime.now().toIso8601String();
-  //     final data = {
-  //       "vehicle_id": vehicleId,
-  //       "latitude": latitude,
-  //       "longitude": longitude,
-  //       "status": status,
-  //       "timestamp": timestamp,
-  //     };
-
-  //     await _dbRef.child('vehicle_locations/$vehicleId').push().set(data); // ✅
-
-  //     print("✅ Firebase location update: $data");
-  //     return true;
-  //   } catch (e) {
-  //     print("❌ Firebase error: $e");
-  //     return false;
-  //   }
-  // }
-
   Future<void> _sendLocationOnce({String status = "start"}) async {
     try {
       final position = await Geolocator.getCurrentPosition();
@@ -162,11 +130,12 @@ class LocationTracker {
 
   Future<void> stopTracking({String status = "stop"}) async {
     print("🛑 Stopping tracking...");
-    await _positionStream?.cancel();
-    _positionStream = null;
 
-    // Send final stop location
+    // ✅ EDITED: Stop Timer
+    _backgroundTimer?.cancel();
+    _backgroundTimer = null;
+
     await _sendLocationOnce(status: status);
-    print("🛑 Tracking stopped and final location sent.");
+    print("🛑 Final location sent. Tracking stopped.");
   }
 }

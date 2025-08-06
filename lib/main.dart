@@ -11,6 +11,8 @@ import 'presentation/login_screen/login_screen.dart';
 import '../presentation/live_trip_tracking/live_trip_tracking.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import '../../core/services/driver_location_service.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
