@@ -109,12 +109,122 @@
 //     );
 //   }
 // }
+// import 'dart:async';
+// import 'dart:convert';
+// import 'package:flutter/material.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'package:http/http.dart' as http;
+// import 'package:shared_preferences/shared_preferences.dart';
+
+// class LiveTripTrackingScreen extends StatefulWidget {
+//   final int vehicleId;
+
+//   const LiveTripTrackingScreen({Key? key, required this.vehicleId}) : super(key: key);
+
+//   @override
+//   _LiveTripTrackingPageState createState() => _LiveTripTrackingPageState();
+// }
+
+// class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
+//   Timer? _pollingTimer;
+//   LatLng? _currentPosition;
+//   String _status = 'Fetching location...';
+
+//   late GoogleMapController _mapController;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _startPolling();
+//   }
+
+//   void _startPolling() {
+//     _fetchVehicleLocation(); // Initial fetch
+//     _pollingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+//       _fetchVehicleLocation();
+//     });
+//   }
+
+//   Future<void> _fetchVehicleLocation() async {
+//     final prefs = await SharedPreferences.getInstance();
+//     final token = prefs.getString('device_token') ?? '';
+
+//     try {
+//       final response = await http.get(
+//         Uri.parse('https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location'),
+//         //  Uri.parse('https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location'),
+//         headers: {
+//           'Authorization': 'Token $token',
+//         },
+//       );
+
+//       if (response.statusCode == 200) {
+//         final data = json.decode(response.body);
+//         final lat = double.tryParse(data['latitude'].toString());
+//         final lng = double.tryParse(data['longitude'].toString());
+
+//         if (lat != null && lng != null) {
+//           final newPosition = LatLng(lat, lng);
+//           setState(() {
+//             _currentPosition = newPosition;
+//             _status = 'Location fetched successfully!';
+//           });
+
+//           _mapController.animateCamera(
+//             CameraUpdate.newLatLng(newPosition),
+//           );
+//         } else {
+//           setState(() {
+//             _status = 'Invalid coordinates received';
+//           });
+//         }
+//       } else {
+//         setState(() {
+//           _status = 'Failed to fetch location: ${response.statusCode}';
+//         });
+//       }
+//     } catch (e) {
+//       setState(() {
+//         _status = 'Error: $e';
+//       });
+//     }
+//   }
+
+//   @override
+//   void dispose() {
+//     _pollingTimer?.cancel();
+//     super.dispose();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('Live Vehicle Tracking')),
+//       body: _currentPosition == null
+//           ? Center(child: Text(_status))
+//           : GoogleMap(
+//               onMapCreated: (controller) => _mapController = controller,
+//               initialCameraPosition: CameraPosition(
+//                 target: _currentPosition!,
+//                 zoom: 16,
+//               ),
+//               markers: {
+//                 Marker(
+//                   markerId: const MarkerId('vehicle'),
+//                   position: _currentPosition!,
+//                   infoWindow: const InfoWindow(title: 'Vehicle Location'),
+//                 ),
+//               },
+//             ),
+//     );
+//   }
+// }
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LiveTripTrackingScreen extends StatefulWidget {
   final int vehicleId;
@@ -126,11 +236,13 @@ class LiveTripTrackingScreen extends StatefulWidget {
 }
 
 class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
-  Timer? _pollingTimer;
-  LatLng? _currentPosition;
-  String _status = 'Fetching location...';
-
   late GoogleMapController _mapController;
+  Marker? _vehicleMarker;
+  LatLng? _lastPosition;
+  Timer? _timer;
+
+  static const int _pollingIntervalSeconds = 1;
+  bool _mapInitialized = false;
 
   @override
   void initState() {
@@ -138,83 +250,87 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
     _startPolling();
   }
 
-  void _startPolling() {
-    _fetchVehicleLocation(); // Initial fetch
-    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _fetchVehicleLocation();
-    });
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
-  Future<void> _fetchVehicleLocation() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('device_token') ?? '';
+  void _startPolling() {
+    _fetchLocation(); // Initial fetch
+    _timer = Timer.periodic(
+      Duration(seconds: _pollingIntervalSeconds),
+      (_) => _fetchLocation(),
+    );
+  }
 
-    try {
-      final response = await http.get(
-        Uri.parse('https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location'),
-        //  Uri.parse('https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location'),
-        headers: {
-          'Authorization': 'Token $token',
-        },
-      );
+  Future<void> _fetchLocation() async {
+    final response = await http.get(
+      Uri.parse('https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location'),
+    );
+    print("Response: ${response.body}");
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final lat = double.tryParse(data['latitude'].toString());
-        final lng = double.tryParse(data['longitude'].toString());
 
-        if (lat != null && lng != null) {
-          final newPosition = LatLng(lat, lng);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final lat = data['latitude'];
+      final lng = data['longitude'];
+
+      if (lat != null && lng != null) {
+        final newPosition = LatLng(lat, lng);
+
+        if (_lastPosition == null || _lastPosition != newPosition) {
           setState(() {
-            _currentPosition = newPosition;
-            _status = 'Location fetched successfully!';
+            _vehicleMarker = Marker(
+              markerId: const MarkerId("vehicle"),
+              position: newPosition,
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+            );
+            _lastPosition = newPosition;
           });
 
-          _mapController.animateCamera(
-            CameraUpdate.newLatLng(newPosition),
-          );
-        } else {
-          setState(() {
-            _status = 'Invalid coordinates received';
-          });
+          if (_mapInitialized) {
+            _animateTo(newPosition);
+          }
         }
-      } else {
-        setState(() {
-          _status = 'Failed to fetch location: ${response.statusCode}';
-        });
       }
-    } catch (e) {
-      setState(() {
-        _status = 'Error: $e';
-      });
+    } else {
+      print('❌ Failed to fetch location: ${response.statusCode}');
     }
   }
 
-  @override
-  void dispose() {
-    _pollingTimer?.cancel();
-    super.dispose();
+  void _animateTo(LatLng target) {
+    _mapController.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: target,
+          zoom: 16.5,
+          tilt: 50,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Vehicle Tracking')),
-      body: _currentPosition == null
-          ? Center(child: Text(_status))
+      appBar: AppBar(
+        title: const Text('Live Trip Tracking'),
+      ),
+      body: _lastPosition == null
+          ? const Center(child: CircularProgressIndicator())
           : GoogleMap(
-              onMapCreated: (controller) => _mapController = controller,
               initialCameraPosition: CameraPosition(
-                target: _currentPosition!,
-                zoom: 16,
+                target: _lastPosition!,
+                zoom: 16.5,
               ),
-              markers: {
-                Marker(
-                  markerId: const MarkerId('vehicle'),
-                  position: _currentPosition!,
-                  infoWindow: const InfoWindow(title: 'Vehicle Location'),
-                ),
+              markers: _vehicleMarker != null ? {_vehicleMarker!} : {},
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _mapInitialized = true;
               },
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
             ),
     );
   }

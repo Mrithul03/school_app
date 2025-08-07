@@ -209,3 +209,4 @@ class ShiftStatusCard extends StatelessWidget {
     );
   }
 }
+

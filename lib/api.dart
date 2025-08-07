@@ -7,14 +7,14 @@ class ApiService {
   static const String baseUrl =
       // 'http://127.0.0.1:8000/';
       // 'http://192.168.1.17:8000';
-      'https://myblogcrud.pythonanywhere.com' ; // or your production URL
+      'https://myblogcrud.pythonanywhere.com'; // or your production URL
 
   Future<Map<String, dynamic>> login({
     required String schoolCode,
     required String phone,
     required String password,
     required String role,
-    String? vehicle, 
+    String? vehicle,
   }) async {
     final url = Uri.parse('$baseUrl/api/login/');
 
@@ -27,8 +27,8 @@ class ApiService {
           'phone': phone,
           'password': password,
           'role': role,
-          if (vehicle != null) 'vehicle': vehicle, // <-- include only if present
-
+          if (vehicle != null)
+            'vehicle': vehicle, // <-- include only if present
         }),
       );
 
@@ -53,32 +53,55 @@ class ApiService {
       throw Exception('Login failed: $e');
     }
   }
-  
+
   Future<Map<String, dynamic>?> fetchCurrentUser(String token) async {
-  final url = Uri.parse('$baseUrl/api/user/me/'); // Replace with your actual API endpoint
+    final url = Uri.parse(
+        '$baseUrl/api/user/me/'); // Replace with your actual API endpoint
 
-  final response = await http.get(
-    url,
-    headers: {
-      'Authorization': 'Token $token',
-      'Content-Type': 'application/json',
-    },
-  );
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+    );
 
-  print('📦 Response Status Code: ${response.statusCode}');
-  print('📨 Response Body: ${response.body}');
+    print('📦 Response Status Code: ${response.statusCode}');
+    print('📨 Response Body: ${response.body}');
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    print('✅ User data fetched: $data');
-    return data;
-  } else {
-    print('❌ Failed to fetch user data: ${response.statusCode} - ${response.body}');
-    return null;
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('✅ User data fetched: $data');
+      return data;
+    } else {
+      print(
+          '❌ Failed to fetch user data: ${response.statusCode} - ${response.body}');
+      return null;
+    }
   }
-}
 
+  Future<Map<String, dynamic>?> fetchStudentRoutes(String token) async {
+    final url = Uri.parse('$baseUrl/api/student-routes/');
 
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+    );
 
+    print('📦 Response route: ${response.statusCode}');
+    print('📨 Response route Body: ${response.body}');
 
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('✅ student route data fetched: $data');
+      return data;
+    } else {
+      print(
+          '❌ Failed to fetch user data: ${response.statusCode} - ${response.body}');
+      return null;
+    }
+  }
 }
