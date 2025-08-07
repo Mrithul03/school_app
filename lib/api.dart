@@ -80,27 +80,21 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> fetchStudentRoutes(String token) async {
+  static Future<List<dynamic>?> fetchStudentRoutes(String token) async {
     final url = Uri.parse('$baseUrl/api/student-routes/');
-
     final response = await http.get(
       url,
       headers: {
         'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
       },
     );
 
-    print('📦 Response route: ${response.statusCode}');
-    print('📨 Response route Body: ${response.body}');
-
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print('✅ student route data fetched: $data');
-      return data;
+      final data = json.decode(response.body);
+      print('routefected:$data');
+      return data; // expecting a list of maps
     } else {
-      print(
-          '❌ Failed to fetch user data: ${response.statusCode} - ${response.body}');
+      print('❌ Failed to load student routes. Status: ${response.statusCode}');
       return null;
     }
   }
