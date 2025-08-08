@@ -57,14 +57,16 @@ class _DriverDashboardState extends State<DriverDashboard>
     });
   }
 
-  void _stopTracking(String shiftType) {
+  void _stopTracking(String shiftType) async {
     print("🛑 Stop tracking for $shiftType shift");
 
-    _tracker.stopTracking(); // Implement stop logic here
+    await _tracker.stopTracking();
 
     setState(() {
       _isTracking = false;
     });
+
+    print("✅ Tracking stopped.");
   }
 
   Future<void> _loadUser() async {

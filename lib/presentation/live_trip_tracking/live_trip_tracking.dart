@@ -220,11 +220,10 @@
 //   }
 // }
 
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class LiveTripTrackingScreen extends StatefulWidget {
   final int vehicleId;
@@ -239,40 +238,30 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
   late GoogleMapController _mapController;
   Marker? _vehicleMarker;
   LatLng? _lastPosition;
-  Timer? _timer;
-
-  static const int _pollingIntervalSeconds = 1;
   bool _mapInitialized = false;
+
+  late WebSocketChannel _channel;
 
   @override
   void initState() {
     super.initState();
-    _startPolling();
+    _connectWebSocket();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _channel.sink.close();
     super.dispose();
   }
 
-  void _startPolling() {
-    _fetchLocation(); // Initial fetch
-    _timer = Timer.periodic(
-      Duration(seconds: _pollingIntervalSeconds),
-      (_) => _fetchLocation(),
-    );
-  }
+  void _connectWebSocket() {
+    final wsUrl = 'ws://192.168.1.17:8000/ws/location/${widget.vehicleId}/'; // or use wss://yourdomain when deployed
+    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
-  Future<void> _fetchLocation() async {
-    final response = await http.get(
-      Uri.parse('https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location'),
-    );
-    print("Response: ${response.body}");
+    _channel.stream.listen((message) {
+      print("📩 WebSocket message: $message");
 
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(message);
       final lat = data['latitude'];
       final lng = data['longitude'];
 
@@ -294,9 +283,11 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingScreen> {
           }
         }
       }
-    } else {
-      print('❌ Failed to fetch location: ${response.statusCode}');
-    }
+    }, onError: (error) {
+      print("❌ WebSocket error: $error");
+    }, onDone: () {
+      print("⚠️ WebSocket closed.");
+    });
   }
 
   void _animateTo(LatLng target) {
