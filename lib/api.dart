@@ -6,9 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static const String baseUrl =
       // 'http://127.0.0.1:8000/';
-      'http://192.168.1.17:8000';
-      // 'https://myblogcrud.pythonanywhere.com'; // or your production URL
-      // 'https://school-web-wfu4.onrender.com';
+      // 'http://192.168.1.17:8000';
+  'https://myblogcrud.pythonanywhere.com';
+  // 'https://school-web-wfu4.onrender.com';
 
   Future<Map<String, dynamic>> login({
     required String schoolCode,
@@ -81,21 +81,60 @@ class ApiService {
     }
   }
 
-  static Future<List<dynamic>?> fetchStudentRoutes(String token) async {
-    final url = Uri.parse('$baseUrl/api/student-routes/');
+  Future<List<dynamic>?> fetchStudentRoutes(String token, int vehicleId) async {
+  final url = Uri.parse('$baseUrl/api/student_routes/$vehicleId/');
+
+  final response = await http.get(
+    url,
+    headers: {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  print('📦 Response routes Status Code: ${response.statusCode}');
+  print('📨 Response routes Body: ${response.body}');
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    print('✅ Student routes fetched: $data');
+
+    if (data is List) {
+      return data; // Return the list of routes
+    } else {
+      print('⚠️ Unexpected data format (not a list)');
+      return null;
+    }
+  } else {
+    print('❌ Failed to fetch routes: ${response.statusCode} - ${response.body}');
+    return null;
+  }
+}
+
+
+  Future<Map<String, dynamic>?> fetchCurrentvehicle_location(
+      String token) async {
+    final url = Uri.parse(
+        '$baseUrl/api/locations_list/'); // Replace with your actual API endpoint
+
     final response = await http.get(
       url,
       headers: {
         'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
       },
     );
 
+    print('📦 Response location_list Status Code: ${response.statusCode}');
+    print('📨 Response location_list Body: ${response.body}');
+
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      print('routefected:$data');
-      return data; // expecting a list of maps
+      final data = jsonDecode(response.body);
+      print('✅ User location_list fetched: $data');
+      return data;
     } else {
-      print('❌ Failed to load student routes. Status: ${response.statusCode}');
+      print(
+          '❌ Failed to fetch location_list: ${response.statusCode} - ${response.body}');
       return null;
     }
   }

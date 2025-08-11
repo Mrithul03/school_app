@@ -141,7 +141,6 @@ class CurrentTripStatusCard extends StatelessWidget {
                             ),
                       ),
                       SizedBox(height: 0.5.h),
-
                       Text(
                         parent,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -153,7 +152,6 @@ class CurrentTripStatusCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       SizedBox(height: 0.5.h),
-
                       Text(
                         'Driver',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -163,7 +161,6 @@ class CurrentTripStatusCard extends StatelessWidget {
                             ),
                       ),
                       SizedBox(height: 0.5.h),
-                      
                       Text(
                         driverName,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -238,26 +235,26 @@ class CurrentTripStatusCard extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    '',
+                    'Status: ${status.isNotEmpty ? status : "Unknown"}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isDarkMode
-                              ? AppTheme.textSecondaryDark
-                              : AppTheme.textSecondaryLight,
+                          fontWeight: FontWeight.w600,
+                          color: _getStatusColor(), // ✅ same color logic as top
                         ),
                   ),
                   SizedBox(height: 0.5.h),
-                  Text(
-                    estimatedTime,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: isDarkMode
-                              ? AppTheme.primaryDark
-                              : AppTheme.primaryLight,
-                        ),
-                  ),
+
+                  // Text(
+                  //   estimatedTime,
+                  //   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  //         fontWeight: FontWeight.w700,
+                  //         color: isDarkMode
+                  //             ? AppTheme.primaryDark
+                  //             : AppTheme.primaryLight,
+                  //       ),
+                  // ),
                 ],
               ),
-            ),
+            )
           ],
         ),
       ),

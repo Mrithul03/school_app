@@ -381,6 +381,8 @@ class _LiveTripTrackingScreenState extends State<LiveTripTrackingScreen> {
       final response = await http.get(
         Uri.parse(
           'https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location',
+          // Uri.parse(
+          // 'http://192.168.1.17:8000/api/vehicle/${widget.vehicleId}/location',
         ),
         headers: {
           'Authorization': 'Token $token',

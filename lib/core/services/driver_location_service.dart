@@ -157,6 +157,7 @@ class LocationTracker {
   LocationTracker({
     required this.vehicleId,
     this.baseUrl = 'https://myblogcrud.pythonanywhere.com',
+    // this.baseUrl = 'http://192.168.1.17:8000',
   });
 
   /// Check location permissions

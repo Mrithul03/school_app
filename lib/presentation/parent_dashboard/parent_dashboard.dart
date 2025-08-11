@@ -24,12 +24,12 @@ class _ParentDashboardState extends State<ParentDashboard>
   Map<String, dynamic>? currentTripData;
   List<Map<String, dynamic>> childrenData = [];
 
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadUser();
+    _handleRefresh();
   }
 
   Future<void> _loadUser() async {
@@ -40,11 +40,13 @@ class _ParentDashboardState extends State<ParentDashboard>
       final api = ApiService();
       final data = await api.fetchCurrentUser(token);
       print('LoadUserData:$data');
+      final locationsdata = await api.fetchCurrentvehicle_location(token);
+      print('locationsdata:$locationsdata');
 
-      if (data != null) {
+      if (data != null && locationsdata != null) {
         setState(() {
           currentTripData = {
-            'status': 'Running', // or from API if available
+            'status': locationsdata['status'],
             'driver': data['vehicle']?['driver'],
             'vehicle_number': data['vehicle']?['vehicle_number'],
             'student_name': data['student']?['name'],
@@ -66,50 +68,6 @@ class _ParentDashboardState extends State<ParentDashboard>
       }
     }
   }
-
-  // // Mock data for current trip
-  // final Map<String, dynamic> currentTripData = {
-  //   "status": currentTripData['status'] ,
-  //   "driver": currentTripData['driver'] ,
-  //   "vehicle_number":currentTripData['vehicle_number'] ,
-
-  //   "tripType": "Morning",
-  //   "route": "Route A - Elementary",
-  // };
-
-  // // Mock data for children
-  // final List<Map<String, dynamic>> childrenData = [
-  //   {
-  //     "id": 1,
-  //     "name": "Emma Rodriguez",
-  //     "status": "Picked Up",
-  //     "estimatedTime": "8:15 AM",
-  //     "photoUrl":
-  //         "https://images.pexels.com/photos/1462630/pexels-photo-1462630.jpeg?auto=compress&cs=tinysrgb&w=400",
-  //     "grade": "Grade 3",
-  //     "school": "Riverside Elementary",
-  //   },
-  //   {
-  //     "id": 2,
-  //     "name": "Lucas Rodriguez",
-  //     "status": "In Transit",
-  //     "estimatedTime": "8:20 AM",
-  //     "photoUrl":
-  //         "https://images.pexels.com/photos/1416736/pexels-photo-1416736.jpeg?auto=compress&cs=tinysrgb&w=400",
-  //     "grade": "Grade 5",
-  //     "school": "Riverside Elementary",
-  //   },
-  //   {
-  //     "id": 3,
-  //     "name": "Sofia Rodriguez",
-  //     "status": "Waiting",
-  //     "estimatedTime": "8:25 AM",
-  //     "photoUrl":
-  //         "https://images.pexels.com/photos/1462637/pexels-photo-1462637.jpeg?auto=compress&cs=tinysrgb&w=400",
-  //     "grade": "Grade 1",
-  //     "school": "Riverside Elementary",
-  //   },
-  // ];
 
   // Mock data for notifications
   final List<Map<String, dynamic>> notificationsData = [

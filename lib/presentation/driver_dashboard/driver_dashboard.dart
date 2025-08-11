@@ -30,7 +30,8 @@ class _DriverDashboardState extends State<DriverDashboard>
   bool _isOnTrip = false;
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> childrenData = [];
-  List<dynamic> _routes = [];
+  List<Map<String, dynamic>> _routes = [];
+
   // Map<String, dynamic>? routes;
 
   int? vehicleId;
@@ -43,7 +44,6 @@ class _DriverDashboardState extends State<DriverDashboard>
     _tracker = LocationTracker(vehicleId: widget.vehicleId);
     _tabController = TabController(length: 4, vsync: this);
     _loadUser();
-    _loadRoutes();
   }
 
   void _startTracking(String shiftType) {
@@ -76,9 +76,17 @@ class _DriverDashboardState extends State<DriverDashboard>
     if (token != null && token.isNotEmpty) {
       final api = ApiService();
       final data = await api.fetchCurrentUser(token);
-      print('LoadUserData:$data');
+      print('LoadUserData: $data');
+      final vehicleId = data?['vehicle']?['id'];
+      if (vehicleId == null) {
+        print('❌ No vehicle ID found.');
+        return;
+      }
 
-      if (data != null) {
+      final fetchedRoutes = await api.fetchStudentRoutes(token, vehicleId);
+      print('routes: $fetchedRoutes');
+
+      if (data != null && fetchedRoutes != null && fetchedRoutes.isNotEmpty) {
         setState(() {
           _students = [
             {
@@ -90,6 +98,7 @@ class _DriverDashboardState extends State<DriverDashboard>
               'school': data['school']?['name'],
             }
           ];
+
           childrenData = [
             {
               'status': 'Running', // or from API if available
@@ -99,28 +108,20 @@ class _DriverDashboardState extends State<DriverDashboard>
             }
           ];
 
-          print('studentdatata:$_students');
-          print('currentTripData:$childrenData');
+          // Since fetchedRoutes is a list, assign directly
+          _routes = fetchedRoutes.map((route) => {
+          'student_name': route['student']?['name'],
+          'school': route['school']?['name'],
+          'route_order': route['route_order'],
+          'shift': route['shift'],
+          'trip_number': route['trip_number']
+        }).toList();
+
+          print('studentdatata: $_students');
+          print('currentTripData: $childrenData');
+          print('studentroute: $_routes');
         });
       }
-    }
-  }
-
-  Future<void> _loadRoutes() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('device_token');
-      if (token != null) {
-        final routes = await ApiService.fetchStudentRoutes(token);
-        print('routes$routes');
-        if (routes != null) {
-          setState(() {
-            _routes = routes;
-          });
-        }
-      }
-    } catch (e) {
-      print("❌ Error loading student routes: $e");
     }
   }
 
@@ -379,113 +380,195 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Widget _buildRoutesTab() {
-    final Map<String, Map<int, List<Map<String, dynamic>>>> groupedRoutes = {
-      'morning': {},
-      'evening': {},
-    };
+  final Map<String, Map<int, List<Map<String, dynamic>>>> groupedRoutes = {
+    'morning': {},
+    'evening': {},
+  };
 
-    for (var route in _routes) {
-      final shift = route['shift']?.toLowerCase();
-      final tripNumber = route['trip_number'] ?? 1;
+  for (var route in _routes) {
+    final shift = route['shift']?.toLowerCase();
+    final tripNumber = route['trip_number'] ?? 1;
 
-      if (shift == 'morning' || shift == 'evening') {
-        groupedRoutes[shift]![tripNumber] ??= [];
-        groupedRoutes[shift]![tripNumber]!.add(route);
-      }
+    if (shift == 'morning' || shift == 'evening') {
+      groupedRoutes[shift]![tripNumber] ??= [];
+      groupedRoutes[shift]![tripNumber]!.add(route);
     }
+  }
 
-    return RefreshIndicator(
-      onRefresh: _refreshData,
-      color: AppTheme.lightTheme.colorScheme.primary,
-      child: ListView(
-        padding: EdgeInsets.all(4.w),
-        children: [
-          if (groupedRoutes['morning']!.isNotEmpty) ...[
-            Text(
-              'Morning Trips',
-              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+  return RefreshIndicator(
+    onRefresh: _refreshData,
+    color: AppTheme.lightTheme.colorScheme.primary,
+    child: ListView(
+      padding: EdgeInsets.all(4.w),
+      children: [
+        if (groupedRoutes['morning']!.isNotEmpty) ...[
+          Text(
+            'Morning Trips',
+            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.lightTheme.colorScheme.primary,
             ),
-            SizedBox(height: 2.h),
-            for (var tripEntry in groupedRoutes['morning']!.entries) ...[
-              Text(
-                'Trip ${tripEntry.key}',
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: 1.h),
-              for (var route in tripEntry.value) ...[
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: EdgeInsets.all(3.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Student: ${route['student_name']}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text('School: ${route['school']}'),
-                        Text('Location: ${route['location_name']}'),
-                        Text(
-                            'Lat: ${route['latitude']}, Lng: ${route['longitude']}'),
-                        Text('Pickup Time: ${route['pickup_time'] ?? 'N/A'}'),
-                        Text('Driver: ${route['driver']}'),
-                        Text('Vehicle No: ${route['vehicle_number']}'),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 1.h),
-              ],
-            ],
-          ],
-          if (groupedRoutes['evening']!.isNotEmpty) ...[
+          ),
+          SizedBox(height: 2.h),
+          for (var tripEntry in groupedRoutes['morning']!.entries) ...[
             Text(
-              'Evening Trips',
-              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 2.h),
-            for (var tripEntry in groupedRoutes['evening']!.entries) ...[
-              Text(
-                'Trip ${tripEntry.key}',
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+              'Trip ${tripEntry.key}',
+              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              SizedBox(height: 1.h),
-              for (var route in tripEntry.value) ...[
-                Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: EdgeInsets.all(3.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Student: ${route['student_name']}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text('School: ${route['school']}'),
-                        Text('Location: ${route['location_name']}'),
-                        Text(
-                            'Lat: ${route['latitude']}, Lng: ${route['longitude']}'),
-                        Text('Pickup Time: ${route['pickup_time'] ?? 'N/A'}'),
-                        Text('Driver: ${route['driver']}'),
-                        Text('Vehicle No: ${route['vehicle_number']}'),
-                      ],
-                    ),
+            ),
+            SizedBox(height: 1.h),
+            for (var route in tripEntry.value) ...[
+              Container(
+                margin: EdgeInsets.only(bottom: 3.h),
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.lightTheme.colorScheme.outline
+                        .withValues(alpha: 0.3),
+                    width: 1.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.lightTheme.colorScheme.shadow,
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 1.h),
-              ],
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightTheme.colorScheme.primary
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: CustomIconWidget(
+                        iconName: 'person',
+                        color: AppTheme.lightTheme.colorScheme.primary,
+                        size: 6.w,
+                      ),
+                    ),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            route['student_name'] ?? 'Unknown Student',
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 0.5.h),
+                          Text(
+                            'Order: ${route['route_order'] ?? 'N/A'}',
+                            style: AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(
+                              color: AppTheme
+                                  .lightTheme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ],
-      ),
-    );
-  }
+        if (groupedRoutes['evening']!.isNotEmpty) ...[
+          Text(
+            'Evening Trips',
+            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.lightTheme.colorScheme.primary,
+            ),
+          ),
+          SizedBox(height: 2.h),
+          for (var tripEntry in groupedRoutes['evening']!.entries) ...[
+            Text(
+              'Trip ${tripEntry.key}',
+              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 1.h),
+            for (var route in tripEntry.value) ...[
+              Container(
+                margin: EdgeInsets.only(bottom: 3.h),
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.lightTheme.colorScheme.outline
+                        .withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.lightTheme.colorScheme.shadow,
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightTheme.colorScheme.primary
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: CustomIconWidget(
+                        iconName: 'person',
+                        color: AppTheme.lightTheme.colorScheme.primary,
+                        size: 6.w,
+                      ),
+                    ),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            route['student_name'] ?? 'Unknown Student',
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 0.5.h),
+                          Text(
+                            'Order: ${route['route_order'] ?? 'N/A'}',
+                            style: AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(
+                              color: AppTheme
+                                  .lightTheme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      ],
+    ),
+  );
+}
 
   Widget _buildProfileTab() {
     return SingleChildScrollView(
