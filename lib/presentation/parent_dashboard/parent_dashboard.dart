@@ -9,6 +9,9 @@ import './widgets/quick_action_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/api.dart';
 
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 class ParentDashboard extends StatefulWidget {
   final int vehicleId;
   const ParentDashboard({Key? key, required this.vehicleId}) : super(key: key);
@@ -49,6 +52,7 @@ class _ParentDashboardState extends State<ParentDashboard>
             'status': locationsdata['status'],
             'driver': data['vehicle']?['driver'],
             'vehicle_number': data['vehicle']?['vehicle_number'],
+            'student_id':data['student']?['id'],
             'student_name': data['student']?['name'],
             'parent': data['student']?['parent'],
             'school': data['school']?['name'],
@@ -68,6 +72,49 @@ class _ParentDashboardState extends State<ParentDashboard>
       }
     }
   }
+
+  // updateLocation.dart
+Future<void> updateLocation(BuildContext context, int studentId, String token) async {
+  try {
+    if (studentId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ No student ID found")),
+      );
+      return;
+    }
+
+    if (token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ No token found")),
+      );
+      return;
+    }
+
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    final api = ApiService();
+    await api.updateLocation(
+      studentId,
+      token,
+      position.latitude,
+      position.longitude,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ Location updated successfully")),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("⚠️ Error: $e")),
+    );
+  }
+}
+
+
+
+
 
   // Mock data for notifications
   final List<Map<String, dynamic>> notificationsData = [
@@ -585,6 +632,46 @@ class _ParentDashboardState extends State<ParentDashboard>
                   onTap: () {},
                 ),
                 SizedBox(height: 2.h),
+
+                // 📌 New Button to Update Location
+                QuickActionButton(
+                  title: 'Update Home Location',
+                  subtitle: 'Set current location as home',
+                  iconName: 'location_on',
+                  iconColor: Colors.green,
+                  onTap: () async {
+                    // Show confirmation dialog
+                    bool? confirm = await showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text("Confirm Location Update"),
+                        content: Text(
+                            "Do you want to update your home location to your current GPS position?"),
+                        actions: [
+                          TextButton(
+                            child: Text("Cancel"),
+                            onPressed: () => Navigator.pop(context, false),
+                          ),
+                          ElevatedButton(
+                            child: Text("Yes, Update"),
+                            onPressed: () => Navigator.pop(context, true),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      // You can fetch studentId & token from SharedPreferences
+                      final prefs = await SharedPreferences.getInstance();
+                      int studentId = prefs.getInt("student_id") ?? 1;
+                      String token = prefs.getString("device_token") ?? "";
+
+                      await updateLocation(context, studentId, token);
+                    }
+                  },
+                ),
+                SizedBox(height: 2.h),
+
                 QuickActionButton(
                   title: 'Notification Settings',
                   subtitle: 'Customize alerts',
@@ -605,14 +692,13 @@ class _ParentDashboardState extends State<ParentDashboard>
                   iconName: 'logout',
                   iconColor: Theme.of(context).colorScheme.error,
                   onTap: () async {
-                    // ✅ Remove token and user_type from SharedPreferences
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.remove('device_token');
                     await prefs.remove('user_id');
                     await prefs.remove('user_role');
                     await prefs.remove('vehicle_id');
 
-                    Navigator.pop(context); // Close the dialog
+                    Navigator.pop(context);
                     Navigator.pushNamedAndRemoveUntil(
                       context,
                       '/login',

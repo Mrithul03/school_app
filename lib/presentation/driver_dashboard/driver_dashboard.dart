@@ -13,6 +13,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/api.dart';
+import '../../core/services/background_service.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+
+
 
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
@@ -46,28 +50,51 @@ class _DriverDashboardState extends State<DriverDashboard>
     _loadUser();
   }
 
-  void _startTracking(String shiftType) {
-    print("🔄 Start tracking for $shiftType shift");
+  void _startTracking(String shiftType) async {
+  print("🔄 Request to start tracking with status: $shiftType");
 
-    // Optionally send vehicle ID, shift type, timestamp
-    _tracker.startTracking(); // Implement actual tracking logic here
+  final service = FlutterBackgroundService();
 
-    setState(() {
-      _isTracking = true;
-    });
+  bool isRunning = await service.isRunning();
+  print("ℹ️ Background service running: $isRunning");
+
+  if (!isRunning) {
+    print("🟢 Starting background service...");
+    await service.startService();
+  } else {
+    print("⚠️ Background service already running");
   }
 
-  void _stopTracking(String shiftType) async {
-    print("🛑 Stop tracking for $shiftType shift");
+  print("📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
+  service.invoke('start-tracking', {
+    "vehicle_id": widget.vehicleId,
+    "status": 'start',
+  });
 
-    await _tracker.stopTracking();
+  setState(() {
+    _isTracking = true;
+  });
+  print("✅ _isTracking set to true");
+}
 
-    setState(() {
-      _isTracking = false;
-    });
 
-    print("✅ Tracking stopped.");
-  }
+void _stopTracking(String shiftType) {
+  print("🛑 Request to stop tracking with status: $shiftType");
+
+  final service = FlutterBackgroundService();
+
+  print("📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
+  service.invoke('stop-tracking', {
+    "vehicle_id": widget.vehicleId,
+    "status": 'stop',
+  });
+
+  setState(() {
+    _isTracking = false;
+  });
+  print("✅ _isTracking set to false");
+}
+
 
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();

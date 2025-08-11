@@ -64,10 +64,11 @@
         <uses-library android:name="org.apache.http.legacy" android:required="false"/>
 
         <service
-        android:name=".YourCustomBackgroundService"
-        android:enabled="true"
-        android:exported="false"
-        android:foregroundServiceType="location"/>
+    android:name="id.flutter.flutter_background_service.BackgroundService"
+    android:enabled="true"
+    android:exported="false"
+    android:foregroundServiceType="location" />
+
 
 
     </application>

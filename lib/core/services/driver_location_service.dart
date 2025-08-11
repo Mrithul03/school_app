@@ -162,22 +162,23 @@ class LocationTracker {
 
   /// Check location permissions
   Future<bool> _checkPermissions() async {
-    final locationStatus = await Permission.location.request();
-    final alwaysStatus = await Permission.locationAlways.request();
+  final locationStatus = await Permission.location.status;
+  final alwaysStatus = await Permission.locationAlways.status;
 
-    if (!locationStatus.isGranted || !alwaysStatus.isGranted) {
-      print('❌ Location permission not granted');
-      return false;
-    }
-
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print('❌ Location services disabled.');
-      return false;
-    }
-
-    return true;
+  if (!locationStatus.isGranted || !alwaysStatus.isGranted) {
+    print('❌ Location permission not granted');
+    return false;
   }
+
+  final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    print('❌ Location services disabled.');
+    return false;
+  }
+
+  return true;
+}
+
 
   /// Start tracking location periodically
   Future<void> startTracking({String status = "start"}) async {

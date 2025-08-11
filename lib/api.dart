@@ -138,4 +138,43 @@ class ApiService {
       return null;
     }
   }
+
+  Future<bool> updateLocation(
+  int studentId,
+  String token,
+  double lat,
+  double lng,
+) async {
+  try {
+    final url = Uri.parse('$baseUrl/api/student/$studentId/update-location/');
+
+    final response = await http.patch(
+      url,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'home_lat': lat,
+        'home_lng': lng,
+      }),
+    );
+
+    print('📦 Status: ${response.statusCode}');
+    print('📨 Body: ${response.body}');
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return true; // ✅ Success
+    } else {
+      print('❌ Failed: ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    print('⚠️ Error updating location: $e');
+    return false;
+  }
+}
+
+
+
 }

@@ -12,6 +12,8 @@ import '../presentation/live_trip_tracking/live_trip_tracking.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import '../../core/services/driver_location_service.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import '../../core/services/background_service.dart';
 
 
 void main() async {
@@ -22,6 +24,20 @@ void main() async {
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return CustomErrorWidget(errorDetails: details);
   };
+  final service = FlutterBackgroundService();
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      isForegroundMode: true, // keeps it alive when phone is locked
+      autoStart: false,       // start manually on button press
+    ),
+    iosConfiguration: IosConfiguration(
+      onForeground: onStart,
+    ),
+  );
+
+
 
   // 🚨 CRITICAL: Device orientation lock - DO NOT REMOVE
   Future.wait([

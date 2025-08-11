@@ -1,49 +1,23 @@
-import 'dart:async';
-import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
-Future<void> initializeService() async {
-  final service = FlutterBackgroundService();
-
-  await service.configure(
-    androidConfiguration: AndroidConfiguration(
-      onStart: onStart,
-      isForegroundMode: true,
-      autoStart: false,
-    ),
-    iosConfiguration: IosConfiguration(
-      onForeground: onStart,
-      onBackground: onIosBackground,
-    ),
-  );
-}
+import 'driver_location_service.dart';
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) {
-  Timer.periodic(const Duration(seconds: 30), (timer) async {
-    if (!(await Geolocator.isLocationServiceEnabled())) return;
+  LocationTracker? tracker;
 
-    final position = await Geolocator.getCurrentPosition();
-    final latitude = position.latitude;
-    final longitude = position.longitude;
+  service.on('start-tracking').listen((event) {
+    final vehicleId = event?['vehicle_id'] ?? 0;
+    final status = event?['status'] ?? 'start';
 
-    // 🔁 Replace with your API endpoint and device/vehicle ID
-    await http.post(
-      Uri.parse('https://myblogcrud.pythonanywhere.com/api/send_location/'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        "vehicle_id": 123, // pass dynamically if needed
-        "lat": latitude,
-        "lng": longitude,
-      }),
-    );
+    tracker = LocationTracker(vehicleId: vehicleId);
+    tracker!.startTracking(status: status);  // Use ! or no null check because you just assigned
+
+    print("🟢 LocationTracker started for vehicleId: $vehicleId, status: $status");
   });
-}
 
-@pragma('vm:entry-point')
-Future<bool> onIosBackground(ServiceInstance service) async {
-  return true;
+  service.on('stop-tracking').listen((event) {
+    final status = event?['status'] ?? 'stop';
+    tracker?.stopTracking(status: status);
+    print("🔴 LocationTracker stopped with status: $status");
+  });
 }
