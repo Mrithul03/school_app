@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
-
 import '../../../core/app_export.dart';
+import 'package:url_launcher/url_launcher.dart'; // ✅ For direct call
 
 class EmergencyContactDialog extends StatelessWidget {
   final List<Map<String, dynamic>> emergencyContacts;
@@ -32,6 +32,7 @@ class EmergencyContactDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Header
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(5.w),
@@ -60,8 +61,7 @@ class EmergencyContactDialog extends StatelessWidget {
                       children: [
                         Text(
                           'Emergency Contacts',
-                          style: AppTheme.lightTheme.textTheme.titleLarge
-                              ?.copyWith(
+                          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                           ),
@@ -69,8 +69,7 @@ class EmergencyContactDialog extends StatelessWidget {
                         SizedBox(height: 0.5.h),
                         Text(
                           'Tap to call immediately',
-                          style:
-                              AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                             color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
@@ -95,6 +94,8 @@ class EmergencyContactDialog extends StatelessWidget {
                 ],
               ),
             ),
+
+            // List
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,
@@ -115,20 +116,20 @@ class EmergencyContactDialog extends StatelessWidget {
 
   Widget _buildContactCard(BuildContext context, Map<String, dynamic> contact) {
     return GestureDetector(
-      onTap: () => _makeCall(context, contact['phone'] ?? ''),
+      onTap: () => _makeCall(contact['phone'] ?? ''),
       child: Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
           color: AppTheme.lightTheme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.3),
+            color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
         child: Row(
           children: [
+            // Contact Type Icon
             Container(
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
@@ -142,6 +143,8 @@ class EmergencyContactDialog extends StatelessWidget {
               ),
             ),
             SizedBox(width: 4.w),
+
+            // Contact Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,6 +165,8 @@ class EmergencyContactDialog extends StatelessWidget {
                       color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   SizedBox(height: 1.h),
                   Row(
@@ -172,12 +177,15 @@ class EmergencyContactDialog extends StatelessWidget {
                         size: 4.w,
                       ),
                       SizedBox(width: 2.w),
-                      Text(
-                        contact['phone'] ?? 'No phone number',
-                        style:
-                            AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.lightTheme.colorScheme.primary,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          contact['phone'] ?? 'No phone number',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.lightTheme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -185,6 +193,10 @@ class EmergencyContactDialog extends StatelessWidget {
                 ],
               ),
             ),
+
+            SizedBox(width: 2.w),
+
+            // Call Button
             Container(
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
@@ -233,15 +245,10 @@ class EmergencyContactDialog extends StatelessWidget {
     }
   }
 
-  void _makeCall(BuildContext context, String phoneNumber) {
-    Navigator.pop(context);
-    // In a real implementation, this would use url_launcher to make a phone call
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling $phoneNumber...'),
-        backgroundColor: AppTheme.getSuccessColor(true),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _makeCall(String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
   }
 }

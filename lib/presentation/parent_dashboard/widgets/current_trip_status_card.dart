@@ -235,7 +235,7 @@ class CurrentTripStatusCard extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    'Status: ${status.isNotEmpty ? status : "Unknown"}',
+                    'NAVIGATE TO VEHICLE LOCATION',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: _getStatusColor(), // ✅ same color logic as top

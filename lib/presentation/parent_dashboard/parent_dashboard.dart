@@ -30,7 +30,7 @@ class _ParentDashboardState extends State<ParentDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadUser();
     _handleRefresh();
   }
@@ -51,8 +51,9 @@ class _ParentDashboardState extends State<ParentDashboard>
           currentTripData = {
             'status': locationsdata['status'],
             'driver': data['vehicle']?['driver'],
+            'driver_phone': data['vehicle']?['phone'],
             'vehicle_number': data['vehicle']?['vehicle_number'],
-            'student_id':data['student']?['id'],
+            'student_id': data['student']?['id'],
             'student_name': data['student']?['name'],
             'parent': data['student']?['parent'],
             'school': data['school']?['name'],
@@ -67,23 +68,19 @@ class _ParentDashboardState extends State<ParentDashboard>
           ];
 
           print('currentTripData:$currentTripData');
-          print('currentTripData:$childrenData');
         });
       }
     }
   }
 
   // updateLocation.dart
-Future<void> updateLocation(BuildContext context, int studentId, String token) async {
+  Future<void> updateLocation(
+    BuildContext context, int studentId) async {
   try {
-    if (studentId <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ No student ID found")),
-      );
-      return;
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final Token = prefs.getString('device_token');
 
-    if (token.isEmpty) {
+    if (Token == null || Token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("⚠️ No token found")),
       );
@@ -97,7 +94,7 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
     final api = ApiService();
     await api.updateLocation(
       studentId,
-      token,
+      Token,
       position.latitude,
       position.longitude,
     );
@@ -112,38 +109,34 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
   }
 }
 
-
-
-
-
   // Mock data for notifications
-  final List<Map<String, dynamic>> notificationsData = [
-    {
-      "id": 1,
-      "title": "Route Change Alert",
-      "message":
-          "Morning pickup time changed to 8:10 AM due to traffic conditions",
-      "time": "5 minutes ago",
-      "type": "alert",
-      "isRead": false,
-    },
-    {
-      "id": 2,
-      "title": "Driver Update",
-      "message": "Michael Johnson is your assigned driver for this week",
-      "time": "1 hour ago",
-      "type": "info",
-      "isRead": true,
-    },
-    {
-      "id": 3,
-      "title": "Payment Reminder",
-      "message": "Monthly transportation fee is due in 3 days",
-      "time": "2 hours ago",
-      "type": "delay",
-      "isRead": false,
-    },
-  ];
+  // final List<Map<String, dynamic>> notificationsData = [
+  //   {
+  //     "id": 1,
+  //     "title": "Route Change Alert",
+  //     "message":
+  //         "Morning pickup time changed to 8:10 AM due to traffic conditions",
+  //     "time": "5 minutes ago",
+  //     "type": "alert",
+  //     "isRead": false,
+  //   },
+  //   {
+  //     "id": 2,
+  //     "title": "Driver Update",
+  //     "message": "Michael Johnson is your assigned driver for this week",
+  //     "time": "1 hour ago",
+  //     "type": "info",
+  //     "isRead": true,
+  //   },
+  //   {
+  //     "id": 3,
+  //     "title": "Payment Reminder",
+  //     "message": "Monthly transportation fee is due in 3 days",
+  //     "time": "2 hours ago",
+  //     "type": "delay",
+  //     "isRead": false,
+  //   },
+  // ];
 
   @override
   void dispose() {
@@ -189,36 +182,36 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
             isDarkMode ? AppTheme.surfaceDark : AppTheme.primaryLight,
         foregroundColor:
             isDarkMode ? AppTheme.textPrimaryDark : AppTheme.onPrimaryLight,
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Handle notifications
-            },
-            icon: Stack(
-              children: [
-                CustomIconWidget(
-                  iconName: 'notifications',
-                  color: isDarkMode
-                      ? AppTheme.textPrimaryDark
-                      : AppTheme.onPrimaryLight,
-                  size: 24,
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 3.w,
-                    height: 3.w,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     onPressed: () {
+        //       // Handle notifications
+        //     },
+        //     icon: Stack(
+        //       children: [
+        //         CustomIconWidget(
+        //           iconName: 'notifications',
+        //           color: isDarkMode
+        //               ? AppTheme.textPrimaryDark
+        //               : AppTheme.onPrimaryLight,
+        //           size: 24,
+        //         ),
+        //         Positioned(
+        //           right: 0,
+        //           top: 0,
+        //           child: Container(
+        //             width: 3.w,
+        //             height: 3.w,
+        //             decoration: BoxDecoration(
+        //               color: Theme.of(context).colorScheme.error,
+        //               shape: BoxShape.circle,
+        //             ),
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //   ),
+        // ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -242,16 +235,16 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
               ),
               text: 'Trips',
             ),
-            Tab(
-              icon: CustomIconWidget(
-                iconName: 'message',
-                color: isDarkMode
-                    ? const Color.fromARGB(255, 255, 255, 255)
-                    : const Color.fromARGB(255, 255, 255, 255),
-                size: 24,
-              ),
-              text: 'Messages',
-            ),
+            // Tab(
+            //   icon: CustomIconWidget(
+            //     iconName: 'message',
+            //     color: isDarkMode
+            //         ? const Color.fromARGB(255, 255, 255, 255)
+            //         : const Color.fromARGB(255, 255, 255, 255),
+            //     size: 24,
+            //   ),
+            //   text: 'Messages',
+            // ),
             Tab(
               icon: CustomIconWidget(
                 iconName: 'person',
@@ -273,7 +266,7 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
         children: [
           _buildHomeTab(),
           _buildTripsTab(),
-          _buildMessagesTab(),
+          // _buildMessagesTab(),
           _buildProfileTab(),
         ],
       ),
@@ -301,16 +294,16 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        ListTile(
-                          leading: CustomIconWidget(
-                            iconName: 'phone',
-                            color: Theme.of(context).colorScheme.error,
-                            size: 24,
-                          ),
-                          title: Text('Call School Office'),
-                          subtitle: Text('+1 (555) 123-4567'),
-                          onTap: () => Navigator.pop(context),
-                        ),
+                        // ListTile(
+                        //   leading: CustomIconWidget(
+                        //     iconName: 'phone',
+                        //     color: Theme.of(context).colorScheme.error,
+                        //     size: 24,
+                        //   ),
+                        //   title: Text('Call School Office'),
+                        //   subtitle: Text('+1 (555) 123-4567'),
+                        //   onTap: () => Navigator.pop(context),
+                        // ),
                         ListTile(
                           leading: CustomIconWidget(
                             iconName: 'directions_bus',
@@ -318,7 +311,7 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
                             size: 24,
                           ),
                           title: Text('Contact Driver'),
-                          subtitle: Text('Michael Johnson'),
+                          subtitle: Text(currentTripData?['driver_phone']),
                           onTap: () => Navigator.pop(context),
                         ),
                         SizedBox(height: 2.h),
@@ -391,78 +384,78 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
             SizedBox(height: 2.h),
 
             // Recent Notifications
-            if (notificationsData.isNotEmpty) ...[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                child: Text(
-                  'Recent Notifications',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
-              SizedBox(height: 1.h),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: notificationsData.take(3).length,
-                itemBuilder: (context, index) {
-                  final notification = notificationsData[index];
-                  return NotificationCard(
-                    notificationData: notification,
-                    onDismiss: () {
-                      setState(() {
-                        notificationsData.removeAt(index);
-                      });
-                    },
-                  );
-                },
-              ),
-              SizedBox(height: 2.h),
-            ],
+            // if (notificationsData.isNotEmpty) ...[
+            //   Padding(
+            //     padding: EdgeInsets.symmetric(horizontal: 4.w),
+            //     child: Text(
+            //       'Recent Notifications',
+            //       style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            //             fontWeight: FontWeight.w600,
+            //           ),
+            //     ),
+            //   ),
+            //   SizedBox(height: 1.h),
+            //   ListView.builder(
+            //     shrinkWrap: true,
+            //     physics: NeverScrollableScrollPhysics(),
+            //     itemCount: notificationsData.take(3).length,
+            //     itemBuilder: (context, index) {
+            //       final notification = notificationsData[index];
+            //       return NotificationCard(
+            //         notificationData: notification,
+            //         onDismiss: () {
+            //           setState(() {
+            //             notificationsData.removeAt(index);
+            //           });
+            //         },
+            //       );
+            //     },
+            //   ),
+            //   SizedBox(height: 2.h),
+            // ],
 
             // Quick Actions
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
-              child: Text(
-                'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-            SizedBox(height: 1.h),
+            // Padding(
+            //   padding: EdgeInsets.symmetric(horizontal: 4.w),
+            //   child: Text(
+            //     'Quick Actions',
+            //     style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            //           fontWeight: FontWeight.w600,
+            //         ),
+            //   ),
+            // ),
+            // SizedBox(height: 1.h),
 
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4.w),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: QuickActionButton(
-                      title: 'Payment Status',
-                      subtitle: 'Check monthly fees',
-                      iconName: 'payment',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/payment-status');
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 4.w),
-                  Expanded(
-                    child: QuickActionButton(
-                      title: 'Trip Calendar',
-                      subtitle: 'View schedule',
-                      iconName: 'calendar_today',
-                      onTap: () {
-                        // Handle trip calendar
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Padding(
+            //   padding: EdgeInsets.symmetric(horizontal: 4.w),
+            //   child: Row(
+            //     children: [
+            //       Expanded(
+            //         child: QuickActionButton(
+            //           title: 'Payment Status',
+            //           subtitle: 'Check monthly fees',
+            //           iconName: 'payment',
+            //           onTap: () {
+            //             Navigator.pushNamed(context, '/payment-status');
+            //           },
+            //         ),
+            //       ),
+            //       SizedBox(width: 4.w),
+            //       Expanded(
+            //         child: QuickActionButton(
+            //           title: 'Trip Calendar',
+            //           subtitle: 'View schedule',
+            //           iconName: 'calendar_today',
+            //           onTap: () {
+            //             // Handle trip calendar
+            //           },
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
 
-            SizedBox(height: 4.h),
+            // SizedBox(height: 4.h),
           ],
         ),
       ),
@@ -509,42 +502,42 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
     );
   }
 
-  Widget _buildMessagesTab() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 2.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            child: Text(
-              'Messages & Notifications',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-          SizedBox(height: 1.h),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: notificationsData.length,
-            itemBuilder: (context, index) {
-              final notification = notificationsData[index];
-              return NotificationCard(
-                notificationData: notification,
-                onDismiss: () {
-                  setState(() {
-                    notificationsData.removeAt(index);
-                  });
-                },
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildMessagesTab() {
+  //   return SingleChildScrollView(
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         SizedBox(height: 2.h),
+  //         Padding(
+  //           padding: EdgeInsets.symmetric(horizontal: 4.w),
+  //           child: Text(
+  //             'Messages & Notifications',
+  //             style: Theme.of(context).textTheme.titleLarge?.copyWith(
+  //                   fontWeight: FontWeight.w600,
+  //                 ),
+  //           ),
+  //         ),
+  //         SizedBox(height: 1.h),
+  //         ListView.builder(
+  //           shrinkWrap: true,
+  //           physics: NeverScrollableScrollPhysics(),
+  //           itemCount: notificationsData.length,
+  //           itemBuilder: (context, index) {
+  //             final notification = notificationsData[index];
+  //             return NotificationCard(
+  //               notificationData: notification,
+  //               onDismiss: () {
+  //                 setState(() {
+  //                   notificationsData.removeAt(index);
+  //                 });
+  //               },
+  //             );
+  //           },
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildProfileTab() {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -593,14 +586,14 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
                 ),
                 SizedBox(height: 2.h),
                 Text(
-                  'Maria Rodriguez',
+                  currentTripData?['parent'] ?? 'Unknown Parent',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                 ),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'maria.rodriguez@email.com',
+                  currentTripData?['student_name'] ?? 'Unknown Parent',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: isDarkMode
                             ? AppTheme.textSecondaryDark
@@ -618,20 +611,20 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Column(
               children: [
-                QuickActionButton(
-                  title: 'Account Settings',
-                  subtitle: 'Manage your account',
-                  iconName: 'settings',
-                  onTap: () {},
-                ),
-                SizedBox(height: 2.h),
-                QuickActionButton(
-                  title: 'Children Management',
-                  subtitle: 'Add or edit children',
-                  iconName: 'family_restroom',
-                  onTap: () {},
-                ),
-                SizedBox(height: 2.h),
+                // QuickActionButton(
+                //   title: 'Account Settings',
+                //   subtitle: 'Manage your account',
+                //   iconName: 'settings',
+                //   onTap: () {},
+                // ),
+                // SizedBox(height: 2.h),
+                // QuickActionButton(
+                //   title: 'Children Management',
+                //   subtitle: 'Add or edit children',
+                //   iconName: 'family_restroom',
+                //   onTap: () {},
+                // ),
+                // SizedBox(height: 2.h),
 
                 // 📌 New Button to Update Location
                 QuickActionButton(
@@ -663,29 +656,29 @@ Future<void> updateLocation(BuildContext context, int studentId, String token) a
                     if (confirm == true) {
                       // You can fetch studentId & token from SharedPreferences
                       final prefs = await SharedPreferences.getInstance();
-                      int studentId = prefs.getInt("student_id") ?? 1;
+                      int studentId = currentTripData?['student_id'];
                       String token = prefs.getString("device_token") ?? "";
 
-                      await updateLocation(context, studentId, token);
+                      await updateLocation(context, studentId);
                     }
                   },
                 ),
                 SizedBox(height: 2.h),
 
-                QuickActionButton(
-                  title: 'Notification Settings',
-                  subtitle: 'Customize alerts',
-                  iconName: 'notifications_active',
-                  onTap: () {},
-                ),
-                SizedBox(height: 2.h),
-                QuickActionButton(
-                  title: 'Help & Support',
-                  subtitle: 'Get assistance',
-                  iconName: 'help',
-                  onTap: () {},
-                ),
-                SizedBox(height: 2.h),
+                // QuickActionButton(
+                //   title: 'Notification Settings',
+                //   subtitle: 'Customize alerts',
+                //   iconName: 'notifications_active',
+                //   onTap: () {},
+                // ),
+                // SizedBox(height: 2.h),
+                // QuickActionButton(
+                //   title: 'Help & Support',
+                //   subtitle: 'Get assistance',
+                //   iconName: 'help',
+                //   onTap: () {},
+                // ),
+                // SizedBox(height: 2.h),
                 QuickActionButton(
                   title: 'Logout',
                   subtitle: 'Sign out of your account',

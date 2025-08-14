@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StudentCard extends StatelessWidget {
   final Map<String, dynamic> student;
@@ -30,6 +31,19 @@ class StudentCard extends StatelessWidget {
         (student['specialNotes'] as String?)?.isNotEmpty ?? false;
     // final bool hasMedicalAlert = student['hasMedicalAlert'] ?? false;
     final String student_name = student['student_name'] as String? ?? 'N/A';
+
+// Function to launch phone dialer
+    void _callParent(String phoneNumber) async {
+      final Uri launchUri = Uri(
+        scheme: 'tel',
+        path: phoneNumber,
+      );
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        throw 'Could not launch $phoneNumber';
+      }
+    }
 
     return Dismissible(
       key: Key('student_${student['id']}'),
@@ -106,14 +120,15 @@ class StudentCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(15.w),
                       child: CustomImageWidget(
-                        imageUrl: student['photo'] ??
-                            'https://images.unsplash.com/photo-1544005313-94ddf0286df2?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3',
+                        imageUrl:
+                            'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', // dummy student icon
                         width: 15.w,
                         height: 15.w,
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
+
                   // if (hasMedicalAlert)
                   //   Positioned(
                   //     top: 0,
@@ -170,113 +185,150 @@ class StudentCard extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: 1.h),
-                    // Row(
-                    //   children: [
-                    //     CustomIconWidget(
-                    //       iconName: 'location_on',
-                    //       color:
-                    //           AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                    //       size: 4.w,
-                    //     ),
-                    //     SizedBox(width: 1.w),
-                    //     Expanded(
-                    //       child: Text(
-                    //         student['pickupAddress'] ?? 'No address provided',
-                    //         style: AppTheme.lightTheme.textTheme.bodySmall
-                    //             ?.copyWith(
-                    //           color: AppTheme
-                    //               .lightTheme.colorScheme.onSurfaceVariant,
-                    //         ),
-                    //         maxLines: 2,
-                    //         overflow: TextOverflow.ellipsis,
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
-                    // SizedBox(height: 1.h),
                     Row(
                       children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 2.w, vertical: 0.5.h),
-                          decoration: BoxDecoration(
-                            color: isPresent
-                                ? AppTheme.getSuccessColor(true)
-                                    .withValues(alpha: 0.1)
-                                : AppTheme.lightTheme.colorScheme.outline
-                                    .withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            isPresent ? 'Present' : 'Not Checked In',
-                            style: AppTheme.lightTheme.textTheme.labelSmall
-                                ?.copyWith(
-                              color: isPresent
-                                  ? AppTheme.getSuccessColor(true)
-                                  : AppTheme
-                                      .lightTheme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        CustomIconWidget(
+                          iconName: 'phone',
+                          color:
+                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                          size: 4.w,
                         ),
-                        Spacer(),
-                        Text(
-                          'Grade ${student['grade'] ?? 'N/A'}',
-                          style: AppTheme.lightTheme.textTheme.labelSmall
-                              ?.copyWith(
-                            color: AppTheme
-                                .lightTheme.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
+                        SizedBox(width: 1.w),
+                        Expanded(
+                          child: Text(
+                            student['student_phone'] ??
+                                'No phone number available',
+                            style: AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(
+                              color: AppTheme
+                                  .lightTheme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
+                    SizedBox(height: 1.h),
+                    // Row(
+                    //   children: [
+                    //     Container(
+                    //       padding: EdgeInsets.symmetric(
+                    //           horizontal: 2.w, vertical: 0.5.h),
+                    //       decoration: BoxDecoration(
+                    //         color: isPresent
+                    //             ? AppTheme.getSuccessColor(true)
+                    //                 .withValues(alpha: 0.1)
+                    //             : AppTheme.lightTheme.colorScheme.outline
+                    //                 .withValues(alpha: 0.1),
+                    //         borderRadius: BorderRadius.circular(12),
+                    //       ),
+                    //       child: Text(
+                    //         isPresent ? 'Present' : 'Not Checked In',
+                    //         style: AppTheme.lightTheme.textTheme.labelSmall
+                    //             ?.copyWith(
+                    //           color: isPresent
+                    //               ? AppTheme.getSuccessColor(true)
+                    //               : AppTheme
+                    //                   .lightTheme.colorScheme.onSurfaceVariant,
+                    //           fontWeight: FontWeight.w600,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     Spacer(),
+                    //     Text(
+                    //       'Grade ${student['grade'] ?? 'N/A'}',
+                    //       style: AppTheme.lightTheme.textTheme.labelSmall
+                    //           ?.copyWith(
+                    //         color: AppTheme
+                    //             .lightTheme.colorScheme.onSurfaceVariant,
+                    //         fontWeight: FontWeight.w500,
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                    InkWell(
+                      onTap: () {
+                        if (student['student_phone'] != null &&
+                            student['student_phone'].toString().isNotEmpty) {
+                          _callParent(student['student_phone']);
+                        }
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 3.w, vertical: 1.h),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightTheme.colorScheme.primary
+                              .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.call,
+                              color: AppTheme.lightTheme.colorScheme.primary,
+                              size: 18,
+                            ),
+                            SizedBox(width: 2.w),
+                            Text(
+                              'Call Parent',
+                              style: AppTheme.lightTheme.textTheme.labelSmall
+                                  ?.copyWith(
+                                color: AppTheme.lightTheme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   ],
                 ),
               ),
               SizedBox(width: 3.w),
-              GestureDetector(
-                onTap: onToggleStatus,
-                child: Container(
-                  width: 12.w,
-                  height: 6.h,
-                  decoration: BoxDecoration(
-                    color: isPresent
-                        ? AppTheme.getSuccessColor(true)
-                        : AppTheme.lightTheme.colorScheme.outline,
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: AnimatedAlign(
-                    duration: Duration(milliseconds: 200),
-                    alignment: isPresent
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      width: 5.w,
-                      height: 5.w,
-                      margin: EdgeInsets.all(1.w),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: CustomIconWidget(
-                        iconName: isPresent ? 'check' : 'close',
-                        color: isPresent
-                            ? AppTheme.getSuccessColor(true)
-                            : AppTheme.lightTheme.colorScheme.outline,
-                        size: 3.w,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: onToggleStatus,
+              //   child: Container(
+              //     width: 12.w,
+              //     height: 6.h,
+              //     decoration: BoxDecoration(
+              //       color: isPresent
+              //           ? AppTheme.getSuccessColor(true)
+              //           : AppTheme.lightTheme.colorScheme.outline,
+              //       borderRadius: BorderRadius.circular(25),
+              //     ),
+              //     child: AnimatedAlign(
+              //       duration: Duration(milliseconds: 200),
+              //       alignment: isPresent
+              //           ? Alignment.centerRight
+              //           : Alignment.centerLeft,
+              //       child: Container(
+              //         width: 5.w,
+              //         height: 5.w,
+              //         margin: EdgeInsets.all(1.w),
+              //         decoration: BoxDecoration(
+              //           color: Colors.white,
+              //           shape: BoxShape.circle,
+              //           boxShadow: [
+              //             BoxShadow(
+              //               color: Colors.black.withValues(alpha: 0.2),
+              //               blurRadius: 4,
+              //               offset: Offset(0, 2),
+              //             ),
+              //           ],
+              //         ),
+              //         child: CustomIconWidget(
+              //           iconName: isPresent ? 'check' : 'close',
+              //           color: isPresent
+              //               ? AppTheme.getSuccessColor(true)
+              //               : AppTheme.lightTheme.colorScheme.outline,
+              //           size: 3.w,
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ),

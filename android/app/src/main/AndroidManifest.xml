@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-   package="com.zeon.schoolmanager">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.zeon.schoolmanager">
+
 
 
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -27,7 +29,8 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"
-        android:foregroundServiceType="location"> ✅
+        android:foregroundServiceType="location">
+
         
         <activity
             android:name=".MainActivity"
@@ -64,10 +67,12 @@
         <uses-library android:name="org.apache.http.legacy" android:required="false"/>
 
         <service
-    android:name="id.flutter.flutter_background_service.BackgroundService"
-    android:enabled="true"
-    android:exported="false"
-    android:foregroundServiceType="location" />
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location"
+            tools:replace="android:exported" />
+
 
 
 

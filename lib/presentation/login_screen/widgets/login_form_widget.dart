@@ -3,7 +3,8 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 
 class LoginFormWidget extends StatefulWidget {
-  final Function(String phone, String password, String schoolCode, String role) onLogin;
+  final Function(String phone, String password, String schoolCode, String role)
+      onLogin;
   final bool isLoading;
 
   const LoginFormWidget({
@@ -118,23 +119,23 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                   size: 20,
                 ),
               ),
-              suffixIcon: IconButton(
-                onPressed: widget.isLoading
-                    ? null
-                    : () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('QR Scanner feature coming soon'),
-                            backgroundColor: AppTheme.getWarningColor(true),
-                          ),
-                        );
-                      },
-                icon: CustomIconWidget(
-                  iconName: 'qr_code_scanner',
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-              ),
+              // suffixIcon: IconButton(
+              //   onPressed: widget.isLoading
+              //       ? null
+              //       : () {
+              //           ScaffoldMessenger.of(context).showSnackBar(
+              //             SnackBar(
+              //               content: Text('QR Scanner feature coming soon'),
+              //               backgroundColor: AppTheme.getWarningColor(true),
+              //             ),
+              //           );
+              //         },
+              //   icon: CustomIconWidget(
+              //     iconName: 'qr_code_scanner',
+              //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              //     size: 20,
+              //   ),
+              // ),
               errorText: _schoolCodeError,
             ),
           ),
@@ -205,29 +206,29 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
           SizedBox(height: 2.h),
 
           // Forgot Password
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: widget.isLoading
-                  ? null
-                  : () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Password reset link sent to your phone'),
-                          backgroundColor: AppTheme.getSuccessColor(true),
-                        ),
-                      );
-                    },
-              child: Text(
-                'Forgot Password?',
-                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.lightTheme.primaryColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(height: 3.h),
+          // Align(
+          //   alignment: Alignment.centerRight,
+          //   child: TextButton(
+          //     onPressed: widget.isLoading
+          //         ? null
+          //         : () {
+          //             ScaffoldMessenger.of(context).showSnackBar(
+          //               SnackBar(
+          //                 content: Text('Password reset link sent to your phone'),
+          //                 backgroundColor: AppTheme.getSuccessColor(true),
+          //               ),
+          //             );
+          //           },
+          //     child: Text(
+          //       'Forgot Password?',
+          //       style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+          //         color: AppTheme.lightTheme.primaryColor,
+          //         fontWeight: FontWeight.w500,
+          //       ),
+          //     ),
+          //   ),
+          // ),
+          // SizedBox(height: 3.h),
 
           // Role Selector
           Text('Select Your Role',
@@ -249,8 +250,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                           });
                         }
                       },
-                selectedColor:
-                    AppTheme.lightTheme.primaryColor.withAlpha(50),
+                selectedColor: AppTheme.lightTheme.primaryColor.withAlpha(50),
                 backgroundColor: AppTheme.lightTheme.colorScheme.surface,
                 labelStyle: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                   color: isSelected
@@ -274,7 +274,12 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
             width: double.infinity,
             height: 6.h,
             child: ElevatedButton(
-              onPressed: _isFormValid && !widget.isLoading ? _handleLogin : null,
+              onPressed:
+                  _isFormValid && !widget.isLoading ? _handleLogin : null,
+              style: ElevatedButton.styleFrom(
+                padding:
+                    EdgeInsets.symmetric(horizontal: 4.w), // add breathing room
+              ),
               child: widget.isLoading
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -289,25 +294,36 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                             ),
                           ),
                         ),
-                        SizedBox(width: 3.w),
-                        Text(
-                          'Signing In...',
-                          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.onPrimary,
-                            fontWeight: FontWeight.w600,
+                        SizedBox(width: 2.w),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Signing In...',
+                              style: AppTheme.lightTheme.textTheme.titleMedium
+                                  ?.copyWith(
+                                color:
+                                    AppTheme.lightTheme.colorScheme.onPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     )
-                  : Text(
-                      'Sign In',
-                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.w600,
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Sign In',
+                        style:
+                            AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                          color: AppTheme.lightTheme.colorScheme.onPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
             ),
-          ),
+          )
         ],
       ),
     );

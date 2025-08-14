@@ -15,8 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app/api.dart';
 import '../../core/services/background_service.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-
-
+import 'TripMapScreen.dart';
 
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
@@ -35,6 +34,7 @@ class _DriverDashboardState extends State<DriverDashboard>
   List<Map<String, dynamic>> _students = [];
   List<Map<String, dynamic>> childrenData = [];
   List<Map<String, dynamic>> _routes = [];
+  List<Map<String, dynamic>> studentlist = [];
 
   // Map<String, dynamic>? routes;
 
@@ -51,50 +51,50 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   void _startTracking(String shiftType) async {
-  print("🔄 Request to start tracking with status: $shiftType");
+    print("🔄 Request to start tracking with status: $shiftType");
 
-  final service = FlutterBackgroundService();
+    final service = FlutterBackgroundService();
 
-  bool isRunning = await service.isRunning();
-  print("ℹ️ Background service running: $isRunning");
+    bool isRunning = await service.isRunning();
+    print("ℹ️ Background service running: $isRunning");
 
-  if (!isRunning) {
-    print("🟢 Starting background service...");
-    await service.startService();
-  } else {
-    print("⚠️ Background service already running");
+    if (!isRunning) {
+      print("🟢 Starting background service...");
+      await service.startService();
+    } else {
+      print("⚠️ Background service already running");
+    }
+
+    print(
+        "📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
+    service.invoke('start-tracking', {
+      "vehicle_id": widget.vehicleId,
+      "status": 'start',
+    });
+
+    setState(() {
+      _isTracking = true;
+    });
+    print("✅ _isTracking set to true");
   }
 
-  print("📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
-  service.invoke('start-tracking', {
-    "vehicle_id": widget.vehicleId,
-    "status": 'start',
-  });
+  void _stopTracking(String shiftType) {
+    print("🛑 Request to stop tracking with status: $shiftType");
 
-  setState(() {
-    _isTracking = true;
-  });
-  print("✅ _isTracking set to true");
-}
+    final service = FlutterBackgroundService();
 
+    print(
+        "📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
+    service.invoke('stop-tracking', {
+      "vehicle_id": widget.vehicleId,
+      "status": 'stop',
+    });
 
-void _stopTracking(String shiftType) {
-  print("🛑 Request to stop tracking with status: $shiftType");
-
-  final service = FlutterBackgroundService();
-
-  print("📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
-  service.invoke('stop-tracking', {
-    "vehicle_id": widget.vehicleId,
-    "status": 'stop',
-  });
-
-  setState(() {
-    _isTracking = false;
-  });
-  print("✅ _isTracking set to false");
-}
-
+    setState(() {
+      _isTracking = false;
+    });
+    print("✅ _isTracking set to false");
+  }
 
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
@@ -113,7 +113,10 @@ void _stopTracking(String shiftType) {
       final fetchedRoutes = await api.fetchStudentRoutes(token, vehicleId);
       print('routes: $fetchedRoutes');
 
-      if (data != null && fetchedRoutes != null && fetchedRoutes.isNotEmpty) {
+      final fetchedStudentList = await api.fetchStudentList(token, vehicleId);
+      print('studentlist: $fetchedStudentList');
+
+      if (data != null && fetchedRoutes != null && fetchedRoutes.isNotEmpty && fetchedStudentList != null) {
         setState(() {
           _students = [
             {
@@ -136,17 +139,33 @@ void _stopTracking(String shiftType) {
           ];
 
           // Since fetchedRoutes is a list, assign directly
-          _routes = fetchedRoutes.map((route) => {
-          'student_name': route['student']?['name'],
-          'school': route['school']?['name'],
-          'route_order': route['route_order'],
-          'shift': route['shift'],
-          'trip_number': route['trip_number']
-        }).toList();
+          _routes = fetchedRoutes
+              .map((route) => {
+                    'student_name': route['student']?['name'],
+                    'student_phone': route['student']?['phone'],
+                    'hom_lat': route['student']?['home_lat'],
+                    'hom_lng': route['student']?['home_lng'],
+                    'school': route['school']?['name'],
+                    'route_order': route['route_order'],
+                    'shift': route['shift'],
+                    'trip_number': route['trip_number']
+                  })
+              .toList();
+
+            studentlist = fetchedStudentList
+              .map((student) => {
+                    'student_name': student['name'],
+                    'student_phone': student['phone'],
+                    'hom_lat': student['home_lat'],
+                    'hom_lng': student['home_lng'],
+                    'school': student['school']?['name'],
+                  })
+              .toList();
 
           print('studentdatata: $_students');
           print('currentTripData: $childrenData');
           print('studentroute: $_routes');
+          print('studentdatata: $studentlist');
         });
       }
     }
@@ -154,17 +173,17 @@ void _stopTracking(String shiftType) {
 
   // Mock emergency contacts
   final List<Map<String, dynamic>> _emergencyContacts = [
-    {
-      "name": "Springfield Elementary School",
-      "type": "School",
-      "phone": "+1 (555) 100-2000"
-    },
+    // {
+    //   "name": "Springfield Elementary School",
+    //   "type": "School",
+    //   "phone": "+1 (555) 100-2000"
+    // },
     {"name": "Emergency Services", "type": "Police", "phone": "911"},
-    {
-      "name": "School Transportation Office",
-      "type": "School",
-      "phone": "+1 (555) 100-2001"
-    },
+    // {
+    //   "name": "School Transportation Office",
+    //   "type": "School",
+    //   "phone": "+1 (555) 100-2001"
+    // },
     {"name": "Medical Emergency", "type": "Medical", "phone": "911"}
   ];
 
@@ -190,33 +209,33 @@ void _stopTracking(String shiftType) {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () => _showNotifications(),
-            icon: Stack(
-              children: [
-                CustomIconWidget(
-                  iconName: 'notifications',
-                  color: Colors.white,
-                  size: 6.w,
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 2.5.w,
-                    height: 2.5.w,
-                    decoration: BoxDecoration(
-                      color: AppTheme.getWarningColor(true),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 2.w),
-        ],
+        // actions: [
+        //   IconButton(
+        //     onPressed: () => _showNotifications(),
+        //     icon: Stack(
+        //       children: [
+        //         CustomIconWidget(
+        //           iconName: 'notifications',
+        //           color: Colors.white,
+        //           size: 6.w,
+        //         ),
+        //         Positioned(
+        //           right: 0,
+        //           top: 0,
+        //           child: Container(
+        //             width: 2.5.w,
+        //             height: 2.5.w,
+        //             decoration: BoxDecoration(
+        //               color: AppTheme.getWarningColor(true),
+        //               shape: BoxShape.circle,
+        //             ),
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //   ),
+        //   SizedBox(width: 2.w),
+        // ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -318,10 +337,10 @@ void _stopTracking(String shiftType) {
 
             // ⚙️ Quick Actions
             QuickActionsBar(
-              onNavigationTap: _openNavigation,
+              // onNavigationTap: _openNavigation,
               onEmergencyTap: _showEmergencyContacts,
-              onRefreshTap: _refreshData,
-              onSettingsTap: _openSettings,
+              // onRefreshTap: _refreshData,
+              // onSettingsTap: _openSettings,
             ),
 
             SizedBox(height: 10.h),
@@ -332,270 +351,224 @@ void _stopTracking(String shiftType) {
   }
 
   Widget _buildStudentsTab() {
-    return RefreshIndicator(
-      onRefresh: _refreshData,
-      color: AppTheme.lightTheme.colorScheme.primary,
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(4.w),
-            color: AppTheme.lightTheme.colorScheme.surface,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Students: ${_students.length}',
-                        style:
-                            AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 0.5.h),
-                      Text(
-                        'Present: ${_students.where((s) => s['isPresent'] == true).length} | Absent: ${_students.where((s) => s['isPresent'] == false).length}',
-                        style:
-                            AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                          color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightTheme.colorScheme.primary
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Swipe right to mark present',
-                    style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.symmetric(vertical: 2.h),
-              itemCount: _students.length,
-              itemBuilder: (context, index) {
-                return StudentCard(
-                  student: _students[index],
-                  onToggleStatus: () => _toggleStudentStatus(index),
-                  onMarkPresent: () => _markStudentPresent(index),
-                  onMarkAbsent: () => _markStudentAbsent(index),
-                  onContactParent: () => _contactParent(_students[index]),
-                  onViewNotes: () => _viewStudentNotes(_students[index]),
-                  onEmergencyContact: () => _showEmergencyContacts(),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoutesTab() {
-  final Map<String, Map<int, List<Map<String, dynamic>>>> groupedRoutes = {
-    'morning': {},
-    'evening': {},
-  };
-
-  for (var route in _routes) {
-    final shift = route['shift']?.toLowerCase();
-    final tripNumber = route['trip_number'] ?? 1;
-
-    if (shift == 'morning' || shift == 'evening') {
-      groupedRoutes[shift]![tripNumber] ??= [];
-      groupedRoutes[shift]![tripNumber]!.add(route);
-    }
-  }
-
   return RefreshIndicator(
     onRefresh: _refreshData,
     color: AppTheme.lightTheme.colorScheme.primary,
-    child: ListView(
-      padding: EdgeInsets.all(4.w),
+    child: Column(
       children: [
-        if (groupedRoutes['morning']!.isNotEmpty) ...[
-          Text(
-            'Morning Trips',
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
-            ),
-          ),
-          SizedBox(height: 2.h),
-          for (var tripEntry in groupedRoutes['morning']!.entries) ...[
-            Text(
-              'Trip ${tripEntry.key}',
-              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 1.h),
-            for (var route in tripEntry.value) ...[
-              Container(
-                margin: EdgeInsets.only(bottom: 3.h),
-                padding: EdgeInsets.all(4.w),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppTheme.lightTheme.colorScheme.outline
-                        .withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.shadow,
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
+        // Header with counts
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(4.w),
+          color: AppTheme.lightTheme.colorScheme.surface,
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(2.w),
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.primary
-                            .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: CustomIconWidget(
-                        iconName: 'person',
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        size: 6.w,
+                    Text(
+                      'Total Students: ${studentlist.length}',
+                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            route['student_name'] ?? 'Unknown Student',
-                            style: AppTheme.lightTheme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 0.5.h),
-                          Text(
-                            'Order: ${route['route_order'] ?? 'N/A'}',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme
-                                  .lightTheme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    SizedBox(height: 0.5.h),
+                    // Text(
+                    //   // If you don't have isPresent in studentlist, this will just show zero
+                    //   'Present: ${studentlist.where((s) => s['isPresent'] == true).length} | Absent: ${studentlist.where((s) => s['isPresent'] == false).length}',
+                    //   style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
+              // Container(
+              //   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+              //   decoration: BoxDecoration(
+              //     color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+              //     borderRadius: BorderRadius.circular(20),
+              //   ),
+              //   child: Text(
+              //     'Swipe right to mark present',
+              //     style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+              //       color: AppTheme.lightTheme.colorScheme.primary,
+              //       fontWeight: FontWeight.w500,
+              //     ),
+              //   ),
+              // ),
             ],
-          ],
-        ],
-        if (groupedRoutes['evening']!.isNotEmpty) ...[
-          Text(
-            'Evening Trips',
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
-            ),
           ),
-          SizedBox(height: 2.h),
-          for (var tripEntry in groupedRoutes['evening']!.entries) ...[
-            Text(
-              'Trip ${tripEntry.key}',
-              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 1.h),
-            for (var route in tripEntry.value) ...[
-              Container(
-                margin: EdgeInsets.only(bottom: 3.h),
-                padding: EdgeInsets.all(4.w),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppTheme.lightTheme.colorScheme.outline
-                        .withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.shadow,
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(2.w),
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.primary
-                            .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: CustomIconWidget(
-                        iconName: 'person',
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        size: 6.w,
-                      ),
-                    ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            route['student_name'] ?? 'Unknown Student',
-                            style: AppTheme.lightTheme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 0.5.h),
-                          Text(
-                            'Order: ${route['route_order'] ?? 'N/A'}',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme
-                                  .lightTheme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ],
+        ),
+
+        // List of students
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.symmetric(vertical: 2.h),
+            itemCount: studentlist.length,
+            itemBuilder: (context, index) {
+              final student = studentlist[index];
+              return StudentCard(
+                student: {
+                  'student_name': student['student_name'],
+                  'student_phone': student['student_phone'],
+                  // 'isPresent': student['isPresent'] ?? false, // If not available, defaults to false
+                },
+                // onToggleStatus: () => _toggleStudentStatus(index),
+                // onMarkPresent: () => _markStudentPresent(index),
+                // onMarkAbsent: () => _markStudentAbsent(index),
+                // onContactParent: () => _contactParent(student),
+                // onViewNotes: () => _viewStudentNotes(student),
+                // onEmergencyContact: () => _showEmergencyContacts(),
+              );
+            },
+          ),
+        ),
       ],
     ),
   );
 }
+
+
+  Widget _buildRoutesTab() {  
+    final Map<String, Map<int, List<Map<String, dynamic>>>> groupedRoutes = {
+      'morning': {},
+      'evening': {},
+    };
+
+    for (var route in _routes) {
+      final shift = route['shift']?.toLowerCase();
+      final tripNumber = route['trip_number'] ?? 1;
+
+      if (shift == 'morning' || shift == 'evening') {
+        groupedRoutes[shift]![tripNumber] ??= [];
+        groupedRoutes[shift]![tripNumber]!.add(route);
+      }
+    }
+
+    Widget buildTripSection(String shift) {
+      final trips = groupedRoutes[shift]!;
+      if (trips.isEmpty) return SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${shift[0].toUpperCase()}${shift.substring(1)} Trips',
+            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.lightTheme.colorScheme.primary,
+            ),
+          ),
+          SizedBox(height: 2.h),
+          for (var tripEntry in trips.entries) ...[
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TripMapScreen(
+                      tripRoutes: tripEntry.value,
+                      tripNumber: tripEntry.key,
+                      shift: shift,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Trip ${tripEntry.key}',
+                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.lightTheme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 1.h),
+            for (var route in tripEntry.value) ...[
+              Container(
+                margin: EdgeInsets.only(bottom: 3.h),
+                padding: EdgeInsets.all(4.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.lightTheme.colorScheme.outline
+                        .withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.lightTheme.colorScheme.shadow,
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightTheme.colorScheme.primary
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: CustomIconWidget(
+                        iconName: 'person',
+                        color: AppTheme.lightTheme.colorScheme.primary,
+                        size: 6.w,
+                      ),
+                    ),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            route['student_name'] ?? 'Unknown Student',
+                            style: AppTheme.lightTheme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 0.5.h),
+                          Text(
+                            'Order: ${route['route_order'] ?? 'N/A'}',
+                            style: AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(
+                              color: AppTheme
+                                  .lightTheme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ],
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: AppTheme.lightTheme.colorScheme.primary,
+      child: ListView(
+        padding: EdgeInsets.all(4.w),
+        children: [
+          buildTripSection('morning'),
+          SizedBox(height: 3.h),
+          buildTripSection('evening'),
+        ],
+      ),
+    );
+  }
 
   Widget _buildProfileTab() {
     return SingleChildScrollView(
@@ -630,67 +603,81 @@ void _stopTracking(String shiftType) {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(25.w),
-                    child: CustomImageWidget(
-                      imageUrl:
-                          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3',
+                    child: Container(
                       width: 25.w,
                       height: 25.w,
-                      fit: BoxFit.cover,
+                      color: Colors.grey.shade200, // background color
+                      child: Icon(
+                        Icons.person,
+                        size: 15.w,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ),
                 ),
                 SizedBox(height: 3.h),
-                Text(
-                  'Robert Johnson',
-                  style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                Column(
+                  children: (_students ?? []).map((student) {
+                    return Column(
+                      children: [
+                        Text(
+                          student['driver'] ?? 'Unknown',
+                          style: AppTheme.lightTheme.textTheme.titleLarge
+                              ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Text(
+                          student['vehicle_number'] ?? 'Unknown',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                              ?.copyWith(
+                            color: AppTheme
+                                .lightTheme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                      ],
+                    );
+                  }).toList(),
                 ),
-                SizedBox(height: 1.h),
-                Text(
-                  'Professional School Bus Driver',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                SizedBox(height: 1.h),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color:
-                        AppTheme.getSuccessColor(true).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'License: CDL-A • Exp: 12/2025',
-                    style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                      color: AppTheme.getSuccessColor(true),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                // Container(
+                //   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                //   decoration: BoxDecoration(
+                //     color:
+                //         AppTheme.getSuccessColor(true).withValues(alpha: 0.1),
+                //     borderRadius: BorderRadius.circular(20),
+                //   ),
+                //   child: Text(
+                //     'License: CDL-A • Exp: 12/2025',
+                //     style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                //       color: AppTheme.getSuccessColor(true),
+                //       fontWeight: FontWeight.w600,
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ),
           SizedBox(height: 3.h),
-          _buildProfileOption(
-            icon: 'settings',
-            title: 'Settings',
-            subtitle: 'App preferences and notifications',
-            onTap: _openSettings,
-          ),
-          _buildProfileOption(
-            icon: 'history',
-            title: 'Trip History',
-            subtitle: 'View past trips and reports',
-            onTap: _viewTripHistory,
-          ),
-          _buildProfileOption(
-            icon: 'help',
-            title: 'Help & Support',
-            subtitle: 'Get help and contact support',
-            onTap: _showHelp,
-          ),
+          // _buildProfileOption(
+          //   icon: 'settings',
+          //   title: 'Settings',
+          //   subtitle: 'App preferences and notifications',
+          //   onTap: _openSettings,
+          // ),
+          // _buildProfileOption(
+          //   icon: 'history',
+          //   title: 'Trip History',
+          //   subtitle: 'View past trips and reports',
+          //   onTap: _viewTripHistory,
+          // ),
+          // _buildProfileOption(
+          //   icon: 'help',
+          //   title: 'Help & Support',
+          //   subtitle: 'Get help and contact support',
+          //   onTap: _showHelp,
+          // ),
           _buildProfileOption(
             icon: 'logout',
             title: 'Logout',
@@ -796,37 +783,37 @@ void _stopTracking(String shiftType) {
     );
   }
 
-  void _toggleStudentStatus(int index) {
-    setState(() {
-      _students[index]['isPresent'] = !(_students[index]['isPresent'] ?? false);
-    });
-  }
+  // void _toggleStudentStatus(int index) {
+  //   setState(() {
+  //     _students[index]['isPresent'] = !(_students[index]['isPresent'] ?? false);
+  //   });
+  // }
 
-  void _markStudentPresent(int index) {
-    setState(() {
-      _students[index]['isPresent'] = true;
-    });
+  // void _markStudentPresent(int index) {
+  //   setState(() {
+  //     _students[index]['isPresent'] = true;
+  //   });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_students[index]['name']} marked as present'),
-        backgroundColor: AppTheme.getSuccessColor(true),
-      ),
-    );
-  }
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(
+  //       content: Text('${_students[index]['name']} marked as present'),
+  //       backgroundColor: AppTheme.getSuccessColor(true),
+  //     ),
+  //   );
+  // }
 
-  void _markStudentAbsent(int index) {
-    setState(() {
-      _students[index]['isPresent'] = false;
-    });
+  // void _markStudentAbsent(int index) {
+  //   setState(() {
+  //     _students[index]['isPresent'] = false;
+  //   });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_students[index]['name']} marked as absent'),
-        backgroundColor: AppTheme.getWarningColor(true),
-      ),
-    );
-  }
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(
+  //       content: Text('${_students[index]['name']} marked as absent'),
+  //       backgroundColor: AppTheme.getWarningColor(true),
+  //     ),
+  //   );
+  // }
 
   void _contactParent(Map<String, dynamic> student) {
     ScaffoldMessenger.of(context).showSnackBar(

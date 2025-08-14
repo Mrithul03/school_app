@@ -175,6 +175,36 @@ class ApiService {
   }
 }
 
+Future<List<dynamic>?> fetchStudentList(String token, int vehicleId) async {
+  final url = Uri.parse('$baseUrl/api/students/$vehicleId/');
+
+  final response = await http.get(
+    url,
+    headers: {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  print('📦 Response student list Status Code: ${response.statusCode}');
+  print('📨 Response student list Body: ${response.body}');
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    print('✅ Student student list fetched: $data');
+
+    if (data is List) {
+      return data; // Return the list of routes
+    } else {
+      print('⚠️ Unexpected data format (not a list)');
+      return null;
+    }
+  } else {
+    print('❌ Failed to fetch routes: ${response.statusCode} - ${response.body}');
+    return null;
+  }
+}
+
 
 
 }

@@ -40,32 +40,32 @@ class QuickActionsBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: _buildActionButton(
-              icon: 'navigation',
-              label: 'Navigation',
-              color: AppTheme.lightTheme.colorScheme.primary,
-              onTap: onNavigationTap,
-            ),
-          ),
-          SizedBox(width: 3.w),
-          Expanded(
-            child: _buildActionButton(
-              icon: 'refresh',
-              label: 'Refresh',
-              color: AppTheme.getSuccessColor(true),
-              onTap: onRefreshTap,
-            ),
-          ),
-          SizedBox(width: 3.w),
-          Expanded(
-            child: _buildActionButton(
-              icon: 'settings',
-              label: 'Settings',
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-              onTap: onSettingsTap,
-            ),
-          ),
+          // Expanded(
+          //   child: _buildActionButton(
+          //     icon: 'navigation',
+          //     label: 'Navigation',
+          //     color: AppTheme.lightTheme.colorScheme.primary,
+          //     onTap: onNavigationTap,
+          //   ),
+          // ),
+          // SizedBox(width: 3.w),
+          // Expanded(
+          //   child: _buildActionButton(
+          //     icon: 'refresh',
+          //     label: 'Refresh',
+          //     color: AppTheme.getSuccessColor(true),
+          //     onTap: onRefreshTap,
+          //   ),
+          // ),
+          // SizedBox(width: 3.w),
+          // Expanded(
+          //   child: _buildActionButton(
+          //     icon: 'settings',
+          //     label: 'Settings',
+          //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+          //     onTap: onSettingsTap,
+          //   ),
+          // ),
           SizedBox(width: 3.w),
           Expanded(
             child: _buildActionButton(
