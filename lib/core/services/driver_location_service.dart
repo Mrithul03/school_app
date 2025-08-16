@@ -135,7 +135,6 @@
 //   }
 // }
 
-
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -162,23 +161,23 @@ class LocationTracker {
 
   /// Check location permissions
   Future<bool> _checkPermissions() async {
+  // 🚫 Do NOT call request() here, background has no Activity
   final locationStatus = await Permission.location.status;
-  final alwaysStatus = await Permission.locationAlways.status;
+  final backgroundStatus = await Permission.locationAlways.status;
 
-  if (!locationStatus.isGranted || !alwaysStatus.isGranted) {
-    print('❌ Location permission not granted');
+  if (!locationStatus.isGranted || !backgroundStatus.isGranted) {
+    print("❌ Location permission not granted (must be requested in foreground)");
     return false;
   }
 
   final serviceEnabled = await Geolocator.isLocationServiceEnabled();
   if (!serviceEnabled) {
-    print('❌ Location services disabled.');
+    print("❌ Location services disabled");
     return false;
   }
 
   return true;
 }
-
 
   /// Start tracking location periodically
   Future<void> startTracking({String status = "start"}) async {
@@ -201,7 +200,8 @@ class LocationTracker {
         final position = await Geolocator.getCurrentPosition();
 
         _updateCount++;
-        print("📍 ($_updateCount) BG Location: ${position.latitude}, ${position.longitude}");
+        print(
+            "📍 ($_updateCount) BG Location: ${position.latitude}, ${position.longitude}");
 
         final success = await _sendLocationUpdate(
           latitude: position.latitude,
@@ -211,11 +211,8 @@ class LocationTracker {
 
         if (!success) {
           _failureCount++;
-          print("⚠️ ($_failureCount/$maxFailures) Failed update");
-          if (_failureCount >= maxFailures) {
-            await stopTracking(status: "stop");
-            print("❌ Too many failures, auto-stopping tracking");
-          }
+          print("⚠️ ($_failureCount) Failed update");
+          // No stopping even if failures happen
         } else {
           _failureCount = 0;
         }

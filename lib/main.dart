@@ -19,33 +19,29 @@ import '../../core/services/background_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  
 
-  // 🚨 CRITICAL: Custom error handling - DO NOT REMOVE
+// 🚨 Custom error handler
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return CustomErrorWidget(errorDetails: details);
   };
-  final service = FlutterBackgroundService();
 
+  final service = FlutterBackgroundService();
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      isForegroundMode: true, // keeps it alive when phone is locked
-      autoStart: false,       // start manually on button press
+      isForegroundMode: true,
+      autoStart: false, // set true if you want auto-restart
     ),
     iosConfiguration: IosConfiguration(
       onForeground: onStart,
     ),
   );
 
-
-
-  // 🚨 CRITICAL: Device orientation lock - DO NOT REMOVE
-  Future.wait([
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-  ]).then((value) {
-    runApp(MyApp());
-  });
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  runApp(MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

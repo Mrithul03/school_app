@@ -10,7 +10,7 @@ void onStart(ServiceInstance service) {
     final status = event?['status'] ?? 'start';
 
     tracker = LocationTracker(vehicleId: vehicleId);
-    tracker!.startTracking(status: status);  // Use ! or no null check because you just assigned
+    tracker!.startTracking(status: status);
 
     print("🟢 LocationTracker started for vehicleId: $vehicleId, status: $status");
   });

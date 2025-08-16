@@ -16,6 +16,7 @@ import 'package:app/api.dart';
 import '../../core/services/background_service.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'TripMapScreen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
@@ -96,6 +97,31 @@ class _DriverDashboardState extends State<DriverDashboard>
     print("✅ _isTracking set to false");
   }
 
+  Future<bool> _requestPermissions() async {
+    // Request foreground location
+    var locationStatus = await Permission.location.request();
+
+    if (locationStatus.isDenied) {
+      return false; // User denied
+    }
+
+    // For Android: request background location
+    if (await Permission.locationAlways.isDenied ||
+        await Permission.locationAlways.isRestricted) {
+      var backgroundStatus = await Permission.locationAlways.request();
+      if (!backgroundStatus.isGranted) {
+        return false; // User denied background permission
+      }
+    }
+
+    // (Optional) Background activity permission (needed in some devices like Xiaomi, Oppo)
+    if (await Permission.ignoreBatteryOptimizations.isDenied) {
+      await Permission.ignoreBatteryOptimizations.request();
+    }
+
+    return true;
+  }
+
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('device_token');
@@ -116,7 +142,10 @@ class _DriverDashboardState extends State<DriverDashboard>
       final fetchedStudentList = await api.fetchStudentList(token, vehicleId);
       print('studentlist: $fetchedStudentList');
 
-      if (data != null && fetchedRoutes != null && fetchedRoutes.isNotEmpty && fetchedStudentList != null) {
+      if (data != null &&
+          fetchedRoutes != null &&
+          fetchedRoutes.isNotEmpty &&
+          fetchedStudentList != null) {
         setState(() {
           _students = [
             {
@@ -152,7 +181,7 @@ class _DriverDashboardState extends State<DriverDashboard>
                   })
               .toList();
 
-            studentlist = fetchedStudentList
+          studentlist = fetchedStudentList
               .map((student) => {
                     'student_name': student['name'],
                     'student_phone': student['phone'],
@@ -311,9 +340,18 @@ class _DriverDashboardState extends State<DriverDashboard>
             ShiftStatusCard(
               shiftType: 'Morning',
               isActive: _isMorningShiftActive,
-              onStartTrip: () {
-                _toggleShift('morning', true);
-                _startTracking('morning');
+              onStartTrip: () async {
+                bool granted = await _requestPermissions();
+                if (granted) {
+                  _toggleShift('morning', true);
+                  _startTracking('morning');
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            "Location & background permissions required to start trip")),
+                  );
+                }
               },
               onEndTrip: () {
                 _toggleShift('morning', false);
@@ -325,9 +363,18 @@ class _DriverDashboardState extends State<DriverDashboard>
             ShiftStatusCard(
               shiftType: 'Evening',
               isActive: _isEveningShiftActive,
-              onStartTrip: () {
-                _toggleShift('evening', true);
-                _startTracking('evening');
+              onStartTrip: () async {
+                bool granted = await _requestPermissions();
+                if (granted) {
+                  _toggleShift('morning', true);
+                  _startTracking('morning');
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            "Location & background permissions required to start trip")),
+                  );
+                }
               },
               onEndTrip: () {
                 _toggleShift('evening', false);
@@ -351,87 +398,87 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Widget _buildStudentsTab() {
-  return RefreshIndicator(
-    onRefresh: _refreshData,
-    color: AppTheme.lightTheme.colorScheme.primary,
-    child: Column(
-      children: [
-        // Header with counts
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(4.w),
-          color: AppTheme.lightTheme.colorScheme.surface,
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Students: ${studentlist.length}',
-                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: AppTheme.lightTheme.colorScheme.primary,
+      child: Column(
+        children: [
+          // Header with counts
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(4.w),
+            color: AppTheme.lightTheme.colorScheme.surface,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Students: ${studentlist.length}',
+                        style:
+                            AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 0.5.h),
-                    // Text(
-                    //   // If you don't have isPresent in studentlist, this will just show zero
-                    //   'Present: ${studentlist.where((s) => s['isPresent'] == true).length} | Absent: ${studentlist.where((s) => s['isPresent'] == false).length}',
-                    //   style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                    //   ),
-                    // ),
-                  ],
+                      SizedBox(height: 0.5.h),
+                      // Text(
+                      //   // If you don't have isPresent in studentlist, this will just show zero
+                      //   'Present: ${studentlist.where((s) => s['isPresent'] == true).length} | Absent: ${studentlist.where((s) => s['isPresent'] == false).length}',
+                      //   style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                      //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                      //   ),
+                      // ),
+                    ],
+                  ),
                 ),
-              ),
-              // Container(
-              //   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-              //   decoration: BoxDecoration(
-              //     color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-              //     borderRadius: BorderRadius.circular(20),
-              //   ),
-              //   child: Text(
-              //     'Swipe right to mark present',
-              //     style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-              //       color: AppTheme.lightTheme.colorScheme.primary,
-              //       fontWeight: FontWeight.w500,
-              //     ),
-              //   ),
-              // ),
-            ],
+                // Container(
+                //   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                //   decoration: BoxDecoration(
+                //     color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+                //     borderRadius: BorderRadius.circular(20),
+                //   ),
+                //   child: Text(
+                //     'Swipe right to mark present',
+                //     style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                //       color: AppTheme.lightTheme.colorScheme.primary,
+                //       fontWeight: FontWeight.w500,
+                //     ),
+                //   ),
+                // ),
+              ],
+            ),
           ),
-        ),
 
-        // List of students
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.symmetric(vertical: 2.h),
-            itemCount: studentlist.length,
-            itemBuilder: (context, index) {
-              final student = studentlist[index];
-              return StudentCard(
-                student: {
-                  'student_name': student['student_name'],
-                  'student_phone': student['student_phone'],
-                  // 'isPresent': student['isPresent'] ?? false, // If not available, defaults to false
-                },
-                // onToggleStatus: () => _toggleStudentStatus(index),
-                // onMarkPresent: () => _markStudentPresent(index),
-                // onMarkAbsent: () => _markStudentAbsent(index),
-                // onContactParent: () => _contactParent(student),
-                // onViewNotes: () => _viewStudentNotes(student),
-                // onEmergencyContact: () => _showEmergencyContacts(),
-              );
-            },
+          // List of students
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 2.h),
+              itemCount: studentlist.length,
+              itemBuilder: (context, index) {
+                final student = studentlist[index];
+                return StudentCard(
+                  student: {
+                    'student_name': student['student_name'],
+                    'student_phone': student['student_phone'],
+                    // 'isPresent': student['isPresent'] ?? false, // If not available, defaults to false
+                  },
+                  // onToggleStatus: () => _toggleStudentStatus(index),
+                  // onMarkPresent: () => _markStudentPresent(index),
+                  // onMarkAbsent: () => _markStudentAbsent(index),
+                  // onContactParent: () => _contactParent(student),
+                  // onViewNotes: () => _viewStudentNotes(student),
+                  // onEmergencyContact: () => _showEmergencyContacts(),
+                );
+              },
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
-
-  Widget _buildRoutesTab() {  
+  Widget _buildRoutesTab() {
     final Map<String, Map<int, List<Map<String, dynamic>>>> groupedRoutes = {
       'morning': {},
       'evening': {},

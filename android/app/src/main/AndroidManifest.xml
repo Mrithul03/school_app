@@ -2,25 +2,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.zeon.schoolmanager">
 
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<!-- Background location (only valid up to Android 11 / API 30) -->
+<uses-permission
+    android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+    android:maxSdkVersion="30" />
 
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+<!-- Foreground service -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/> 
-<uses-permission android:name="android.permission.INTERNET"/> ✅
-<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/> ✅
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/> ✅
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/> ✅
-<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/> ✅
-<!-- 🚛 Foreground Location Service -->
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/> ✅
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/> ✅
-
-<!-- 🛌 Prevent App from Sleeping -->
-<uses-permission android:name="android.permission.WAKE_LOCK"/> ✅
-
+<!-- Prevent CPU from sleeping -->
+<uses-permission android:name="android.permission.WAKE_LOCK" />
 
 
 
