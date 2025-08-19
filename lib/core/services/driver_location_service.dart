@@ -161,7 +161,7 @@ class LocationTracker {
 
   /// Check location permissions
   Future<bool> _checkPermissions() async {
-  // 🚫 Do NOT call request() here, background has no Activity
+  // Check location permissions
   final locationStatus = await Permission.location.status;
   final backgroundStatus = await Permission.locationAlways.status;
 
@@ -174,6 +174,17 @@ class LocationTracker {
   if (!serviceEnabled) {
     print("❌ Location services disabled");
     return false;
+  }
+
+  // Check notification permission
+  final notificationStatus = await Permission.notification.status;
+  if (!notificationStatus.isGranted) {
+    print("⚠️ Notification permission not granted. Requesting now...");
+    final result = await Permission.notification.request();
+    if (!result.isGranted) {
+      print("❌ Notification permission denied");
+      return false;
+    }
   }
 
   return true;
@@ -212,6 +223,7 @@ class LocationTracker {
         if (!success) {
           _failureCount++;
           print("⚠️ ($_failureCount) Failed update");
+          stopTracking();
           // No stopping even if failures happen
         } else {
           _failureCount = 0;
@@ -280,7 +292,7 @@ class LocationTracker {
     _backgroundTimer?.cancel();
     _backgroundTimer = null;
 
-    await _sendLocationOnce(status: status);
+    await _sendLocationOnce(status: 'stop');
     print("🛑 Final location sent. Tracking stopped.");
   }
 }

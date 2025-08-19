@@ -11,6 +11,7 @@ import 'package:app/api.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
 
 class ParentDashboard extends StatefulWidget {
   final int vehicleId;
@@ -24,90 +25,128 @@ class _ParentDashboardState extends State<ParentDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isRefreshing = false;
+  bool isLoading = true; // 👈 used only for first-time loader
+  bool isFirstLoad = true;
   Map<String, dynamic>? currentTripData;
+  List<Map<String, dynamic>> paymentList = [];
   List<Map<String, dynamic>> childrenData = [];
+
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadUser();
-    _handleRefresh();
+
+    // 🔄 Auto-refresh every 5 seconds
+    // _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    //   _handleRefresh();
+    // });
   }
 
   Future<void> _loadUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('device_token');
+    setState(() => isLoading = true);
 
-    if (token != null && token.isNotEmpty) {
-      final api = ApiService();
-      final data = await api.fetchCurrentUser(token);
-      print('LoadUserData:$data');
-      final locationsdata = await api.fetchCurrentvehicle_location(token);
-      print('locationsdata:$locationsdata');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('device_token');
 
-      if (data != null && locationsdata != null) {
-        setState(() {
-          currentTripData = {
-            'status': locationsdata['status'],
-            'driver': data['vehicle']?['driver'],
-            'driver_phone': data['vehicle']?['phone'],
-            'vehicle_number': data['vehicle']?['vehicle_number'],
-            'student_id': data['student']?['id'],
-            'student_name': data['student']?['name'],
-            'parent': data['student']?['parent'],
-            'school': data['school']?['name'],
-          };
-          childrenData = [
-            {
-              'status': 'Running', // or from API if available
+      if (token != null && token.isNotEmpty) {
+        final api = ApiService();
+
+        final data = await api.fetchCurrentUser(token);
+        print('LoadUserData: $data');
+
+        final locationsdata = await api.fetchCurrentvehicle_locationdata(token);
+        print('locationsdata: $locationsdata');
+
+        final payments = await api.getPayments(token);
+        print('loadpaymentdata: $payments');
+
+        if (data != null && locationsdata != null) {
+          setState(() {
+            currentTripData = {
+              'status': locationsdata['status'],
               'driver': data['vehicle']?['driver'],
+              'driver_phone': data['vehicle']?['phone'],
               'vehicle_number': data['vehicle']?['vehicle_number'],
+              'student_id': data['student']?['id'],
               'student_name': data['student']?['name'],
-            }
-          ];
+              'parent': data['student']?['parent'],
+              'school': data['school']?['name'],
+            };
 
-          print('currentTripData:$currentTripData');
-        });
+            childrenData = [
+              {
+                'status': 'Running', // fallback if not from API
+                'driver': data['vehicle']?['driver'],
+                'vehicle_number': data['vehicle']?['vehicle_number'],
+                'student_name': data['student']?['name'],
+              }
+            ];
+            // paymentList =  [
+            //   {
+            //     'id': payments['id'],
+            //     'student_id':payments['student_id'],
+            //     'month': payments['month'],
+            //     'amount': payments['amount'],
+            //     'is_paid': payments['is_paid'],
+            //     'paid_on': payments['paid_on']
+
+            //   }]
+            // ;
+
+            setState(() {
+              paymentList = List<Map<String, dynamic>>.from(payments);
+            });
+
+            print('currentTripData: $currentTripData');
+          });
+        }
       }
+    } catch (e) {
+      print("Error in _loadUser: $e");
+    } finally {
+      // ✅ Always stop loading
+      setState(() => isLoading = false);
     }
   }
 
   // updateLocation.dart
-  Future<void> updateLocation(
-    BuildContext context, int studentId) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final Token = prefs.getString('device_token');
+  Future<void> updateLocation(BuildContext context, int studentId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final Token = prefs.getString('device_token');
 
-    if (Token == null || Token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ No token found")),
+      if (Token == null || Token.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("⚠️ No token found")),
+        );
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
       );
-      return;
+
+      final api = ApiService();
+      await api.updateLocation(
+        studentId,
+        Token,
+        position.latitude,
+        position.longitude,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Location updated successfully")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("⚠️ Error: $e")),
+      );
     }
-
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    final api = ApiService();
-    await api.updateLocation(
-      studentId,
-      Token,
-      position.latitude,
-      position.longitude,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ Location updated successfully")),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("⚠️ Error: $e")),
-    );
   }
-}
 
   // Mock data for notifications
   // final List<Map<String, dynamic>> notificationsData = [
@@ -142,27 +181,23 @@ class _ParentDashboardState extends State<ParentDashboard>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+    _refreshTimer?.cancel();
   }
 
   Future<void> _handleRefresh() async {
     setState(() {
-      _isRefreshing = true;
+      isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(Duration(seconds: 2));
-
-    setState(() {
-      _isRefreshing = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Trip data updated'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    try {
+      await _loadUser(); // ✅ reuse the function you already made
+    } catch (e) {
+      print("Error in _handleRefresh: $e");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
@@ -265,7 +300,7 @@ class _ParentDashboardState extends State<ParentDashboard>
         controller: _tabController,
         children: [
           _buildHomeTab(),
-          _buildTripsTab(),
+          _buildPaymentsTab(),
           // _buildMessagesTab(),
           _buildProfileTab(),
         ],
@@ -369,7 +404,17 @@ class _ParentDashboardState extends State<ParentDashboard>
             // SizedBox(height: 2.h),
 
             // Current Trip Status
-            if (currentTripData != null)
+            // 🔄 Show loader if data is null or still fetching
+            if (isLoading) ...[
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 20.h),
+                  child: const CircularProgressIndicator(),
+                ),
+              ),
+            ]
+            // ✅ Data Loaded
+            else if (currentTripData != null) ...[
               CurrentTripStatusCard(
                 tripData: currentTripData!,
                 onTap: () {
@@ -380,8 +425,36 @@ class _ParentDashboardState extends State<ParentDashboard>
                   );
                 },
               ),
-
-            SizedBox(height: 2.h),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                child: SizedBox(
+                  width: double.infinity, // makes it full width
+                  child: ElevatedButton.icon(
+                    onPressed: _handleRefresh,
+                    icon: Icon(Icons.refresh),
+                    label: Text("Refresh"),
+                    style: ElevatedButton.styleFrom(
+                      padding:
+                          EdgeInsets.symmetric(vertical: 14), // vertical height
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 2.h),
+            ] else ...[
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 20.h),
+                  child: Text(
+                    "No trip data available",
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
+              ),
+            ],
 
             // Recent Notifications
             // if (notificationsData.isNotEmpty) ...[
@@ -462,41 +535,81 @@ class _ParentDashboardState extends State<ParentDashboard>
     );
   }
 
-  Widget _buildTripsTab() {
+  Widget _buildPaymentsTab() {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 2.h),
+          SizedBox(height: 16),
+
+          // Title
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'All Trips',
+              'Payments',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
             ),
           ),
-          SizedBox(height: 1.h),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: childrenData.length,
-            itemBuilder: (context, index) {
-              final child = childrenData[index];
-              return ChildStatusCard(
-                childData: child,
-                onTap: () {
-                  Navigator.pushNamed(context, '/live-trip-tracking');
-                },
-                onContactDriver: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Calling driver...')),
-                  );
-                },
-              );
-            },
-          ),
+          SizedBox(height: 8),
+
+          // If no payments
+          if (paymentList.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: Text(
+                  "No payments found",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: paymentList.length,
+              itemBuilder: (context, index) {
+                final payment = paymentList[index];
+
+                final bool isPaid = payment['is_paid'] == true;
+                final String month = payment['month'] ?? 'N/A';
+                final String amount = payment['amount']?.toString() ?? '0';
+                final String paidOn =
+                    isPaid ? (payment['paid_on'] ?? 'Unknown') : 'Not Paid';
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    leading: Icon(
+                      isPaid ? Icons.check_circle : Icons.cancel,
+                      color: isPaid ? Colors.green : Colors.red,
+                    ),
+                    title: Text(
+                      "Month: $month",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      "Amount: ₹$amount \nPaid On: $paidOn",
+                    ),
+                    trailing: Text(
+                      isPaid ? "Paid" : "Pending",
+                      style: TextStyle(
+                        color: isPaid ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

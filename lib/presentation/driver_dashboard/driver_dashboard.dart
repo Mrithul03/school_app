@@ -29,6 +29,7 @@ class DriverDashboard extends StatefulWidget {
 class _DriverDashboardState extends State<DriverDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  bool isLoading = false;
   bool _isMorningShiftActive = false;
   bool _isEveningShiftActive = false;
   bool _isOnTrip = false;
@@ -98,31 +99,33 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Future<bool> _requestPermissions() async {
-    // Request foreground location
-    var locationStatus = await Permission.location.request();
-
-    if (locationStatus.isDenied) {
-      return false; // User denied
+    // 1️⃣ Foreground location
+    var foregroundStatus = await Permission.locationWhenInUse.request();
+    if (!foregroundStatus.isGranted) {
+      print("❌ Foreground location permission denied");
+      return false; // Foreground denied
     }
 
-    // For Android: request background location
-    if (await Permission.locationAlways.isDenied ||
-        await Permission.locationAlways.isRestricted) {
-      var backgroundStatus = await Permission.locationAlways.request();
-      if (!backgroundStatus.isGranted) {
-        return false; // User denied background permission
-      }
+    // 2️⃣ Background location (request only if foreground granted)
+    var backgroundStatus = await Permission.locationAlways.request();
+    if (!backgroundStatus.isGranted) {
+      print("❌ Background location permission denied");
+      return false; // Background denied
     }
 
-    // (Optional) Background activity permission (needed in some devices like Xiaomi, Oppo)
-    if (await Permission.ignoreBatteryOptimizations.isDenied) {
-      await Permission.ignoreBatteryOptimizations.request();
+    // 3️⃣ Notification permission
+    var notificationStatus = await Permission.notification.request();
+    if (!notificationStatus.isGranted) {
+      print("❌ Notification permission denied");
+      return false; // Notification denied
     }
 
-    return true;
+    print("✅ All permissions granted");
+    return true; // All granted
   }
 
   Future<void> _loadUser() async {
+    setState(() => isLoading = true);
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('device_token');
 
@@ -149,6 +152,7 @@ class _DriverDashboardState extends State<DriverDashboard>
         setState(() {
           _students = [
             {
+              'id': data['id'],
               'status': 'Running', // or from API if available
               'driver': data['vehicle']?['driver'],
               'vehicle_number': data['vehicle']?['vehicle_number'],
@@ -183,6 +187,7 @@ class _DriverDashboardState extends State<DriverDashboard>
 
           studentlist = fetchedStudentList
               .map((student) => {
+                    'id': student['id'],
                     'student_name': student['name'],
                     'student_phone': student['phone'],
                     'hom_lat': student['home_lat'],
@@ -194,8 +199,9 @@ class _DriverDashboardState extends State<DriverDashboard>
           print('studentdatata: $_students');
           print('currentTripData: $childrenData');
           print('studentroute: $_routes');
-          print('studentdatata: $studentlist');
+          print('studentdata: $studentlist');
         });
+        setState(() => isLoading = false);
       }
     }
   }
@@ -215,6 +221,156 @@ class _DriverDashboardState extends State<DriverDashboard>
     // },
     {"name": "Medical Emergency", "type": "Medical", "phone": "911"}
   ];
+
+  void _openPaymentForm(BuildContext context, Map<String, dynamic> student) {
+    final _formKey = GlobalKey<FormState>();
+    final TextEditingController monthController = TextEditingController();
+    final TextEditingController amountController = TextEditingController();
+    final TextEditingController dateController = TextEditingController();
+
+    String selectedStatus = "Unpaid";
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Mark Payment - ${student['student_name']}"),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Month picker (Year-Month only, default day = 01)
+                  TextFormField(
+                    controller: monthController,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: "Month",
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: now,
+                        firstDate: DateTime(now.year - 1),
+                        lastDate: DateTime(now.year + 1),
+                      );
+                      if (picked != null) {
+                        monthController.text =
+                            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-01";
+                      }
+                    },
+                    validator: (value) =>
+                        value == null || value.isEmpty ? "Select month" : null,
+                  ),
+
+                  // Amount
+                  TextFormField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Amount"),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Enter amount";
+                      }
+                      if (double.tryParse(value) == null) {
+                        return "Enter valid number";
+                      }
+                      return null;
+                    },
+                  ),
+
+                  // Paid date (only if Paid)
+                  TextFormField(
+                    controller: dateController,
+                    readOnly: true,
+                    enabled: selectedStatus == "Paid",
+                    decoration: const InputDecoration(
+                      labelText: "Paid Date",
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    onTap: selectedStatus == "Paid"
+                        ? () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              dateController.text =
+                                  picked.toIso8601String().split("T")[0];
+                            }
+                          }
+                        : null,
+                  ),
+
+                  // Paid / Unpaid dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: const InputDecoration(labelText: "Status"),
+                    items: ["Paid", "Unpaid"].map((status) {
+                      return DropdownMenuItem(
+                        value: status,
+                        child: Text(status),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        selectedStatus = val;
+                        // rebuild dialog to enable/disable Paid Date field
+                        (context as Element).markNeedsBuild();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: const Text("Submit"),
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString("device_token") ?? "";
+
+                if (_formKey.currentState!.validate()) {
+                  final success = await ApiService().createPayment(
+                    studentId: student['id'], // ✅ using ID from button
+                    month: monthController.text,
+                    amount: double.tryParse(amountController.text) ?? 0,
+                    isPaid: selectedStatus == "Paid",
+                    paidOn: selectedStatus == "Paid" &&
+                            dateController.text.isNotEmpty
+                        ? dateController.text
+                        : null,
+                    token: token, // ✅ token passed
+                  );
+
+                  if (success) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("✅ Payment saved")),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("❌ Failed to save payment")),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -337,65 +493,159 @@ class _DriverDashboardState extends State<DriverDashboard>
             SizedBox(height: 2.h),
 
             // 🚍 Morning Shift Card
-            ShiftStatusCard(
-              shiftType: 'Morning',
-              isActive: _isMorningShiftActive,
-              onStartTrip: () async {
-                bool granted = await _requestPermissions();
-                if (granted) {
-                  _toggleShift('morning', true);
-                  _startTracking('morning');
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+            if (isLoading) ...[
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 20.h),
+                  child: const CircularProgressIndicator(),
+                ),
+              ),
+            ]
+            // ✅ Data Loaded
+            else ...[
+              ShiftStatusCard(
+                shiftType: 'Morning',
+                isActive: _isMorningShiftActive,
+                onStartTrip: () async {
+                  bool granted = await _requestPermissions();
+                  if (granted) {
+                    _toggleShift('morning', true);
+                    _startTracking('morning');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
                         content: Text(
-                            "Location & background permissions required to start trip")),
-                  );
-                }
-              },
-              onEndTrip: () {
-                _toggleShift('morning', false);
-                _stopTracking('morning');
-              },
-            ),
+                            "Location & background permissions required to start trip"),
+                      ),
+                    );
+                  }
+                },
+                onEndTrip: () {
+                  _toggleShift('morning', false);
+                  _stopTracking('morning');
+                },
+              ),
 
-            // 🌙 Evening Shift Card
-            ShiftStatusCard(
-              shiftType: 'Evening',
-              isActive: _isEveningShiftActive,
-              onStartTrip: () async {
-                bool granted = await _requestPermissions();
-                if (granted) {
-                  _toggleShift('morning', true);
-                  _startTracking('morning');
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+// 🌙 Evening Shift Card
+              ShiftStatusCard(
+                shiftType: 'Evening',
+                isActive: _isEveningShiftActive,
+                onStartTrip: () async {
+                  bool granted = await _requestPermissions();
+                  if (granted) {
+                    _toggleShift('evening', true); // ✅ fixed
+                    _startTracking('evening'); // ✅ fixed
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
                         content: Text(
-                            "Location & background permissions required to start trip")),
-                  );
-                }
-              },
-              onEndTrip: () {
-                _toggleShift('evening', false);
-                _stopTracking('eveing');
-              },
-            ),
+                            "Location & background permissions required to start trip"),
+                      ),
+                    );
+                  }
+                },
+                onEndTrip: () {
+                  _toggleShift('evening', false);
+                  _stopTracking('evening'); // ✅ fixed
+                },
+              ),
 
-            // ⚙️ Quick Actions
-            QuickActionsBar(
-              // onNavigationTap: _openNavigation,
-              onEmergencyTap: _showEmergencyContacts,
-              // onRefreshTap: _refreshData,
-              // onSettingsTap: _openSettings,
-            ),
+              // ⚙️ Quick Actions
+              QuickActionsBar(
+                // onNavigationTap: _openNavigation,
+                onEmergencyTap: _showEmergencyContacts,
+                // onRefreshTap: _refreshData,
+                // onSettingsTap: _openSettings,
+              ),
 
-            SizedBox(height: 10.h),
+              SizedBox(height: 10.h),
+            ],
           ],
         ),
       ),
     );
   }
+
+  // Widget _buildStudentsTab() {
+  //   return RefreshIndicator(
+  //     onRefresh: _refreshData,
+  //     color: AppTheme.lightTheme.colorScheme.primary,
+  //     child: Column(
+  //       children: [
+  //         // Header with counts
+  //         Container(
+  //           width: double.infinity,
+  //           padding: EdgeInsets.all(4.w),
+  //           color: AppTheme.lightTheme.colorScheme.surface,
+  //           child: Row(
+  //             children: [
+  //               Expanded(
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   children: [
+  //                     Text(
+  //                       'Total Students: ${studentlist.length}',
+  //                       style:
+  //                           AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+  //                         fontWeight: FontWeight.w600,
+  //                       ),
+  //                     ),
+  //                     SizedBox(height: 0.5.h),
+  //                     // Text(
+  //                     //   // If you don't have isPresent in studentlist, this will just show zero
+  //                     //   'Present: ${studentlist.where((s) => s['isPresent'] == true).length} | Absent: ${studentlist.where((s) => s['isPresent'] == false).length}',
+  //                     //   style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+  //                     //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+  //                     //   ),
+  //                     // ),
+  //                   ],
+  //                 ),
+  //               ),
+  //               // Container(
+  //               //   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+  //               //   decoration: BoxDecoration(
+  //               //     color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+  //               //     borderRadius: BorderRadius.circular(20),
+  //               //   ),
+  //               //   child: Text(
+  //               //     'Swipe right to mark present',
+  //               //     style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+  //               //       color: AppTheme.lightTheme.colorScheme.primary,
+  //               //       fontWeight: FontWeight.w500,
+  //               //     ),
+  //               //   ),
+  //               // ),
+  //             ],
+  //           ),
+  //         ),
+
+  //         // List of students
+  //         Expanded(
+  //           child: ListView.builder(
+  //             padding: EdgeInsets.symmetric(vertical: 2.h),
+  //             itemCount: studentlist.length,
+  //             itemBuilder: (context, index) {
+  //               final student = studentlist[index];
+  //               return StudentCard(
+  //                 student: {
+  //                   'student_name': student['student_name'],
+  //                   'student_phone': student['student_phone'],
+  //                   // 'isPresent': student['isPresent'] ?? false, // If not available, defaults to false
+  //                 },
+  //                 // onToggleStatus: () => _toggleStudentStatus(index),
+  //                 // onMarkPresent: () => _markStudentPresent(index),
+  //                 // onMarkAbsent: () => _markStudentAbsent(index),
+  //                 // onContactParent: () => _contactParent(student),
+  //                 // onViewNotes: () => _viewStudentNotes(student),
+  //                 // onEmergencyContact: () => _showEmergencyContacts(),
+  //               );
+  //             },
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildStudentsTab() {
     return RefreshIndicator(
@@ -403,76 +653,124 @@ class _DriverDashboardState extends State<DriverDashboard>
       color: AppTheme.lightTheme.colorScheme.primary,
       child: Column(
         children: [
-          // Header with counts
+          // Header
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(4.w),
             color: AppTheme.lightTheme.colorScheme.surface,
             child: Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Students: ${studentlist.length}',
-                        style:
-                            AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 0.5.h),
-                      // Text(
-                      //   // If you don't have isPresent in studentlist, this will just show zero
-                      //   'Present: ${studentlist.where((s) => s['isPresent'] == true).length} | Absent: ${studentlist.where((s) => s['isPresent'] == false).length}',
-                      //   style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                      //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                      //   ),
-                      // ),
-                    ],
+                if (isLoading) ...[
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 20.h),
+                      child: const CircularProgressIndicator(),
+                    ),
                   ),
-                ),
-                // Container(
-                //   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                //   decoration: BoxDecoration(
-                //     color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-                //     borderRadius: BorderRadius.circular(20),
-                //   ),
-                //   child: Text(
-                //     'Swipe right to mark present',
-                //     style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                //       color: AppTheme.lightTheme.colorScheme.primary,
-                //       fontWeight: FontWeight.w500,
-                //     ),
-                //   ),
-                // ),
+                ]
+                // ✅ Data Loaded
+                else ...[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Students: ${studentlist.length}',
+                          style: AppTheme.lightTheme.textTheme.titleMedium
+                              ?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 0.5.h),
+                        Text(
+                          'Present: ${studentlist.where((s) => s['isPresent'] == true).length} | '
+                          'Absent: ${studentlist.where((s) => s['isPresent'] == false).length}',
+                          style:
+                              AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                            color: AppTheme
+                                .lightTheme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
-          // List of students
+          // Student List
           Expanded(
             child: ListView.builder(
               padding: EdgeInsets.symmetric(vertical: 2.h),
               itemCount: studentlist.length,
               itemBuilder: (context, index) {
                 final student = studentlist[index];
-                return StudentCard(
-                  student: {
-                    'student_name': student['student_name'],
-                    'student_phone': student['student_phone'],
-                    // 'isPresent': student['isPresent'] ?? false, // If not available, defaults to false
-                  },
-                  // onToggleStatus: () => _toggleStudentStatus(index),
-                  // onMarkPresent: () => _markStudentPresent(index),
-                  // onMarkAbsent: () => _markStudentAbsent(index),
-                  // onContactParent: () => _contactParent(student),
-                  // onViewNotes: () => _viewStudentNotes(student),
-                  // onEmergencyContact: () => _showEmergencyContacts(),
+
+                // ✅ Safely extract ID
+                final int? studentId = student['id'] is int
+                    ? student['id']
+                    : int.tryParse(student['id']?.toString() ?? "");
+
+                final isPresent = student['isPresent'] ?? false;
+
+                return Card(
+                  margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.all(3.w),
+                    title: Text(
+                      student['student_name'] ?? "Unknown",
+                      style: AppTheme.lightTheme.textTheme.titleMedium,
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (student['student_phone'] != null)
+                          Text("📞 ${student['student_phone']}"),
+                        if (student.containsKey('last_payment'))
+                          Text(
+                            "💰 Last Payment: ${student['last_payment']}",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 💳 Payment button
+                        IconButton(
+                          icon: const Icon(Icons.payment,
+                              color: Colors.blueAccent),
+                          onPressed: () {
+                            if (studentId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("❌ Missing student ID")),
+                              );
+                              return;
+                            }
+
+                            // ✅ Always pass ID with other details
+                            _openPaymentForm(context, {
+                              "id": studentId,
+                              "student_name": student['student_name'] ?? "",
+                              "student_phone": student['student_phone'] ?? "",
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
-          ),
+          )
         ],
       ),
     );
@@ -501,102 +799,113 @@ class _DriverDashboardState extends State<DriverDashboard>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${shift[0].toUpperCase()}${shift.substring(1)} Trips',
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
+          if (isLoading) ...[
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 20.h),
+                child: const CircularProgressIndicator(),
+              ),
             ),
-          ),
-          SizedBox(height: 2.h),
-          for (var tripEntry in trips.entries) ...[
-            InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TripMapScreen(
-                      tripRoutes: tripEntry.value,
-                      tripNumber: tripEntry.key,
-                      shift: shift,
+          ]
+          // ✅ Data Loaded
+          else ...[
+            Text(
+              '${shift[0].toUpperCase()}${shift.substring(1)} Trips',
+              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.lightTheme.colorScheme.primary,
+              ),
+            ),
+            SizedBox(height: 2.h),
+            for (var tripEntry in trips.entries) ...[
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TripMapScreen(
+                        tripRoutes: tripEntry.value,
+                        tripNumber: tripEntry.key,
+                        shift: shift,
+                      ),
                     ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Trip ${tripEntry.key}',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                  );
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Trip ${tripEntry.key}',
+                    style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.lightTheme.colorScheme.primary,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: 1.h),
-            for (var route in tripEntry.value) ...[
-              Container(
-                margin: EdgeInsets.only(bottom: 3.h),
-                padding: EdgeInsets.all(4.w),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppTheme.lightTheme.colorScheme.outline
-                        .withValues(alpha: 0.3),
-                    width: 1.5,
+              SizedBox(height: 1.h),
+              for (var route in tripEntry.value) ...[
+                Container(
+                  margin: EdgeInsets.only(bottom: 3.h),
+                  padding: EdgeInsets.all(4.w),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightTheme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.lightTheme.colorScheme.outline
+                          .withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.lightTheme.colorScheme.shadow,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.shadow,
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(2.w),
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.primary
-                            .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(2.w),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightTheme.colorScheme.primary
+                              .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: CustomIconWidget(
+                          iconName: 'person',
+                          color: AppTheme.lightTheme.colorScheme.primary,
+                          size: 6.w,
+                        ),
                       ),
-                      child: CustomIconWidget(
-                        iconName: 'person',
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        size: 6.w,
-                      ),
-                    ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            route['student_name'] ?? 'Unknown Student',
-                            style: AppTheme.lightTheme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 0.5.h),
-                          Text(
-                            'Order: ${route['route_order'] ?? 'N/A'}',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: AppTheme
-                                  .lightTheme.colorScheme.onSurfaceVariant,
+                      SizedBox(width: 3.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              route['student_name'] ?? 'Unknown Student',
+                              style: AppTheme.lightTheme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 0.5.h),
+                            Text(
+                              'Order: ${route['route_order'] ?? 'N/A'}',
+                              style: AppTheme.lightTheme.textTheme.bodySmall
+                                  ?.copyWith(
+                                color: AppTheme
+                                    .lightTheme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ],
         ],

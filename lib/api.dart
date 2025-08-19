@@ -7,7 +7,7 @@ class ApiService {
   static const String baseUrl =
       // 'http://127.0.0.1:8000/';
       // 'http://192.168.1.17:8000';
-  'https://myblogcrud.pythonanywhere.com';
+      'https://myblogcrud.pythonanywhere.com';
   // 'https://school-web-wfu4.onrender.com';
 
   Future<Map<String, dynamic>> login({
@@ -82,37 +82,37 @@ class ApiService {
   }
 
   Future<List<dynamic>?> fetchStudentRoutes(String token, int vehicleId) async {
-  final url = Uri.parse('$baseUrl/api/student_routes/$vehicleId/');
+    final url = Uri.parse('$baseUrl/api/student_routes/$vehicleId/');
 
-  final response = await http.get(
-    url,
-    headers: {
-      'Authorization': 'Token $token',
-      'Content-Type': 'application/json',
-    },
-  );
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+    );
 
-  print('📦 Response routes Status Code: ${response.statusCode}');
-  print('📨 Response routes Body: ${response.body}');
+    print('📦 Response routes Status Code: ${response.statusCode}');
+    print('📨 Response routes Body: ${response.body}');
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    print('✅ Student routes fetched: $data');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('✅ Student routes fetched: $data');
 
-    if (data is List) {
-      return data; // Return the list of routes
+      if (data is List) {
+        return data; // Return the list of routes
+      } else {
+        print('⚠️ Unexpected data format (not a list)');
+        return null;
+      }
     } else {
-      print('⚠️ Unexpected data format (not a list)');
+      print(
+          '❌ Failed to fetch routes: ${response.statusCode} - ${response.body}');
       return null;
     }
-  } else {
-    print('❌ Failed to fetch routes: ${response.statusCode} - ${response.body}');
-    return null;
   }
-}
 
-
-  Future<Map<String, dynamic>?> fetchCurrentvehicle_location(
+  Future<Map<String, dynamic>?> fetchCurrentvehicle_locationdata(
       String token) async {
     final url = Uri.parse(
         '$baseUrl/api/locations_list/'); // Replace with your actual API endpoint
@@ -140,71 +140,130 @@ class ApiService {
   }
 
   Future<bool> updateLocation(
-  int studentId,
-  String token,
-  double lat,
-  double lng,
-) async {
-  try {
-    final url = Uri.parse('$baseUrl/api/student/$studentId/update-location/');
+    int studentId,
+    String token,
+    double lat,
+    double lng,
+  ) async {
+    try {
+      final url = Uri.parse('$baseUrl/api/student/$studentId/update-location/');
 
-    final response = await http.patch(
+      final response = await http.patch(
+        url,
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'home_lat': lat,
+          'home_lng': lng,
+        }),
+      );
+
+      print('📦 Status: ${response.statusCode}');
+      print('📨 Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true; // ✅ Success
+      } else {
+        print('❌ Failed: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('⚠️ Error updating location: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>?> fetchStudentList(String token, int vehicleId) async {
+    final url = Uri.parse('$baseUrl/api/students/$vehicleId/');
+
+    final response = await http.get(
       url,
       headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'home_lat': lat,
-        'home_lng': lng,
-      }),
     );
 
-    print('📦 Status: ${response.statusCode}');
-    print('📨 Body: ${response.body}');
+    print('📦 Response student list Status Code: ${response.statusCode}');
+    print('📨 Response student list Body: ${response.body}');
 
-    if (response.statusCode == 200 || response.statusCode == 204) {
-      return true; // ✅ Success
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('✅ Student student list fetched: $data');
+
+      if (data is List) {
+        return data; // Return the list of routes
+      } else {
+        print('⚠️ Unexpected data format (not a list)');
+        return null;
+      }
     } else {
-      print('❌ Failed: ${response.body}');
-      return false;
-    }
-  } catch (e) {
-    print('⚠️ Error updating location: $e');
-    return false;
-  }
-}
-
-Future<List<dynamic>?> fetchStudentList(String token, int vehicleId) async {
-  final url = Uri.parse('$baseUrl/api/students/$vehicleId/');
-
-  final response = await http.get(
-    url,
-    headers: {
-      'Authorization': 'Token $token',
-      'Content-Type': 'application/json',
-    },
-  );
-
-  print('📦 Response student list Status Code: ${response.statusCode}');
-  print('📨 Response student list Body: ${response.body}');
-
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body);
-    print('✅ Student student list fetched: $data');
-
-    if (data is List) {
-      return data; // Return the list of routes
-    } else {
-      print('⚠️ Unexpected data format (not a list)');
+      print(
+          '❌ Failed to fetch routes: ${response.statusCode} - ${response.body}');
       return null;
     }
-  } else {
-    print('❌ Failed to fetch routes: ${response.statusCode} - ${response.body}');
-    return null;
   }
-}
 
+  Future<bool> createPayment({
+    required int studentId,
+    required String month,
+    required double amount,
+    required bool isPaid,
+    String? paidOn,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/api/payment/"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Token $token",
+        },
+        body: jsonEncode({
+          "student_id": studentId,
+          "month": month,
+          "amount": amount,
+          "is_paid": isPaid,
+          "paid_on": paidOn,
+        }),
+      );
 
+      if (response.statusCode == 201) {
+        return true;
+      } else {
+        print("❌ Failed: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("⚠️ Error: $e");
+      return false;
+    }
+  }
 
+  Future<List<dynamic>> getPayments(String token) async {
+    final url = Uri.parse("$baseUrl/api/payment-list/");
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Token $token",
+      },
+    );
+
+    print('📦 Response payment list Status Code: ${response.statusCode}');
+      print('📨 Response payment list Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Student payment list fetched: $data');
+      }
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      return [];
+    }
+  }
 }
