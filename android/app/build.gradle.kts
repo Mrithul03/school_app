@@ -35,7 +35,7 @@ android {
         applicationId = "com.zeon.schoolmanager"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
+        versionCode = 6
         versionName = "1.0"
     }
 

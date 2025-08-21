@@ -18,6 +18,10 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'TripMapScreen.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io'; // for Platform
+import 'package:device_info_plus/device_info_plus.dart'; // for DeviceInfoPlugin
+
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
   const DriverDashboard({Key? key, required this.vehicleId}) : super(key: key);
@@ -99,30 +103,42 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Future<bool> _requestPermissions() async {
-    // 1️⃣ Foreground location
-    var foregroundStatus = await Permission.locationWhenInUse.request();
-    if (!foregroundStatus.isGranted) {
-      print("❌ Foreground location permission denied");
-      return false; // Foreground denied
-    }
-
-    // 2️⃣ Background location (request only if foreground granted)
-    var backgroundStatus = await Permission.locationAlways.request();
-    if (!backgroundStatus.isGranted) {
-      print("❌ Background location permission denied");
-      return false; // Background denied
-    }
-
-    // 3️⃣ Notification permission
-    var notificationStatus = await Permission.notification.request();
-    if (!notificationStatus.isGranted) {
-      print("❌ Notification permission denied");
-      return false; // Notification denied
-    }
-
-    print("✅ All permissions granted");
-    return true; // All granted
+  // 1️⃣ Foreground location
+  var foregroundStatus = await Permission.locationWhenInUse.request();
+  if (!foregroundStatus.isGranted) {
+    print("❌ Foreground location permission denied");
+    return false;
   }
+
+  // 2️⃣ Background location (only if foreground granted)
+  // Note: On Android 10+, you must ask separately for "always" location.
+  var backgroundStatus = await Permission.locationAlways.request();
+  if (!backgroundStatus.isGranted) {
+    print("❌ Background location permission denied");
+    return false;
+  }
+
+  // 3️⃣ Notification permission (needed for foreground service)
+  var notificationStatus = await Permission.notification.request();
+  if (!notificationStatus.isGranted) {
+    print("❌ Notification permission denied");
+    return false;
+  }
+
+  // 4️⃣ Battery optimization (ask if restricted)
+  if (await Permission.ignoreBatteryOptimizations.isDenied) {
+    print("⚠️ Battery optimization not ignored. Requesting...");
+    var batteryStatus = await Permission.ignoreBatteryOptimizations.request();
+    if (!batteryStatus.isGranted) {
+      print("❌ Battery optimization not granted");
+      return false; // User must allow manually
+    }
+  }
+
+  print("✅ All permissions granted including battery optimization");
+  return true;
+}
+
 
   Future<void> _loadUser() async {
     setState(() => isLoading = true);
@@ -203,6 +219,39 @@ class _DriverDashboardState extends State<DriverDashboard>
         });
         setState(() => isLoading = false);
       }
+    }
+  }
+
+  // Future<void> requestBatteryOptimizationPermission() async {
+  //   if (await Permission.ignoreBatteryOptimizations.isDenied) {
+  //     await openAppSettings();
+  //   }
+  // }
+
+  // Future<void> checkOEMSettings() async {
+  //   if (Platform.isAndroid) {
+  //     final deviceInfo = DeviceInfoPlugin();
+  //     final androidInfo = await deviceInfo.androidInfo;
+  //     final brand = androidInfo.brand.toLowerCase();
+
+  //     if (['xiaomi', 'oppo', 'vivo', 'huawei', 'realme'].contains(brand)) {
+  //       // 👉 Show a dialog/snackbar to guide the user
+  //       // e.g., "Please enable AutoStart and Background Activity in settings"
+  //       print("⚠️ OEM brand detected: $brand. Ask user to enable AutoStart.");
+  //     }
+  //   }
+  // }
+
+  Future<void> _openSettings() async {
+    final opened =
+        await openAppSettings(); // This opens the app's settings page
+    if (!opened) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open app settings.'),
+          backgroundColor: AppTheme.lightTheme.colorScheme.error,
+        ),
+      );
     }
   }
 
@@ -555,7 +604,7 @@ class _DriverDashboardState extends State<DriverDashboard>
                 // onNavigationTap: _openNavigation,
                 onEmergencyTap: _showEmergencyContacts,
                 // onRefreshTap: _refreshData,
-                // onSettingsTap: _openSettings,
+                onSettingsTap: _openSettings,
               ),
 
               SizedBox(height: 10.h),
@@ -1218,13 +1267,16 @@ class _DriverDashboardState extends State<DriverDashboard>
     );
   }
 
-  void _openSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening settings...'),
-        backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-      ),
-    );
+  void _openAppSettings(BuildContext context) async {
+    final opened = await openAppSettings();
+    if (!opened) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open settings.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   void _showNotifications() {

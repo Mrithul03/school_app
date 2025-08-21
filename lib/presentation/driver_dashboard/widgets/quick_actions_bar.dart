@@ -57,15 +57,15 @@ class QuickActionsBar extends StatelessWidget {
           //     onTap: onRefreshTap,
           //   ),
           // ),
-          // SizedBox(width: 3.w),
-          // Expanded(
-          //   child: _buildActionButton(
-          //     icon: 'settings',
-          //     label: 'Settings',
-          //     color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-          //     onTap: onSettingsTap,
-          //   ),
-          // ),
+          SizedBox(width: 3.w),
+          Expanded(
+            child: _buildActionButton(
+              icon: 'settings',
+              label: 'Settings',
+              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              onTap: onSettingsTap,
+            ),
+          ),
           SizedBox(width: 3.w),
           Expanded(
             child: _buildActionButton(
@@ -76,6 +76,7 @@ class QuickActionsBar extends StatelessWidget {
               isEmergency: true,
             ),
           ),
+          
         ],
       ),
     );
