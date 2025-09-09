@@ -15,11 +15,9 @@ import '../../core/services/driver_location_service.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import '../../core/services/background_service.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  
 
 // 🚨 Custom error handler
   ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -41,7 +39,6 @@ void main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -116,7 +113,10 @@ class MyApp extends StatelessWidget {
               final args = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute(
                 builder: (context) => LiveTripTrackingScreen(
-                    vehicleId: args['vehicleId']), // ✅ Match the push
+                  vehicleId: args['vehicleId'] as int,
+                  studentLat: args['studentLat'] as double,
+                  studentLng: args['studentLng'] as double,
+                ),
               );
             }
 

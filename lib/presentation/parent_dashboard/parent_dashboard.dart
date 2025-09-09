@@ -12,6 +12,7 @@ import 'package:app/api.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 
 class ParentDashboard extends StatefulWidget {
   final int vehicleId;
@@ -46,7 +47,7 @@ class _ParentDashboardState extends State<ParentDashboard>
   }
 
   Future<void> _loadUser() async {
-    setState(() => isLoading = true);
+    setState(() => isLoading = false);
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -75,6 +76,8 @@ class _ParentDashboardState extends State<ParentDashboard>
               'student_name': data['student']?['name'],
               'parent': data['student']?['parent'],
               'school': data['school']?['name'],
+              'home_lat': data['student']?['home_lat'],
+              'home_lng': data['student']?['home_lng'],
             };
 
             childrenData = [
@@ -262,13 +265,14 @@ class _ParentDashboardState extends State<ParentDashboard>
             ),
             Tab(
               icon: CustomIconWidget(
-                iconName: 'directions_bus',
+                iconName:
+                    'payments', // 🔹 change to 'credit_card' if you prefer
                 color: isDarkMode
                     ? const Color.fromARGB(255, 245, 240, 240)
                     : const Color.fromARGB(255, 255, 255, 255),
                 size: 24,
               ),
-              text: 'Trips',
+              text: 'Payments', // 🔹 updated tab name
             ),
             // Tab(
             //   icon: CustomIconWidget(
@@ -339,6 +343,7 @@ class _ParentDashboardState extends State<ParentDashboard>
                         //   subtitle: Text('+1 (555) 123-4567'),
                         //   onTap: () => Navigator.pop(context),
                         // ),
+
                         ListTile(
                           leading: CustomIconWidget(
                             iconName: 'directions_bus',
@@ -346,9 +351,24 @@ class _ParentDashboardState extends State<ParentDashboard>
                             size: 24,
                           ),
                           title: Text('Contact Driver'),
-                          subtitle: Text(currentTripData?['driver_phone']),
-                          onTap: () => Navigator.pop(context),
+                          subtitle:
+                              Text(currentTripData?['driver_phone'] ?? ""),
+                          onTap: () async {
+                            final phone = currentTripData?['driver_phone'];
+                            if (phone != null && phone.isNotEmpty) {
+                              final uri = Uri.parse('tel:$phone');
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text("Cannot launch dialer")),
+                                );
+                              }
+                            }
+                          },
                         ),
+
                         SizedBox(height: 2.h),
                       ],
                     ),
@@ -421,7 +441,15 @@ class _ParentDashboardState extends State<ParentDashboard>
                   Navigator.pushNamed(
                     context,
                     '/live-trip-tracking',
-                    arguments: {'vehicleId': widget.vehicleId},
+                    arguments: {
+                      'vehicleId': widget.vehicleId,
+                      'studentLat': double.tryParse(
+                              currentTripData!['home_lat'].toString()) ??
+                          0.0,
+                      'studentLng': double.tryParse(
+                              currentTripData!['home_lng'].toString()) ??
+                          0.0,
+                    },
                   );
                 },
               ),
@@ -536,6 +564,15 @@ class _ParentDashboardState extends State<ParentDashboard>
   }
 
   Widget _buildPaymentsTab() {
+    String _monthNumberToName(int month) {
+      const monthNames = [
+        '', // placeholder for index 0
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return month >= 1 && month <= 12 ? monthNames[month] : 'Unknown';
+    }
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,16 +611,22 @@ class _ParentDashboardState extends State<ParentDashboard>
                 final payment = paymentList[index];
 
                 final bool isPaid = payment['is_paid'] == true;
-                final String month = payment['month'] ?? 'N/A';
+
+                // Convert month int to month name
+                final int monthNumber = payment['month'] ?? 0;
+                final String month = _monthNumberToName(monthNumber);
+
+                // Convert amount to string safely
                 final String amount = payment['amount']?.toString() ?? '0';
-                final String paidOn =
-                    isPaid ? (payment['paid_on'] ?? 'Unknown') : 'Not Paid';
+
+                // Convert paid_on to string safely
+                final String paidOn = isPaid
+                    ? (payment['paid_on']?.toString() ?? 'Unknown')
+                    : 'Not Paid';
 
                 return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -798,18 +841,43 @@ class _ParentDashboardState extends State<ParentDashboard>
                   iconName: 'logout',
                   iconColor: Theme.of(context).colorScheme.error,
                   onTap: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.remove('device_token');
-                    await prefs.remove('user_id');
-                    await prefs.remove('user_role');
-                    await prefs.remove('vehicle_id');
-
-                    Navigator.pop(context);
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (route) => false,
+                    final shouldLogout = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Confirm Logout'),
+                        content: Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context, false), // Cancel
+                            child: Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.error,
+                            ),
+                            onPressed: () =>
+                                Navigator.pop(context, true), // Confirm
+                            child: Text('Logout'),
+                          ),
+                        ],
+                      ),
                     );
+
+                    if (shouldLogout == true) {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('device_token');
+                      await prefs.remove('user_id');
+                      await prefs.remove('user_role');
+                      await prefs.remove('vehicle_id');
+
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login',
+                        (route) => false,
+                      );
+                    }
                   },
                 ),
               ],

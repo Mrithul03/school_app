@@ -145,28 +145,21 @@ class LocationTracker {
   final int vehicleId;
   final String baseUrl;
 
-  int _updateCount = 0;
-  int _failureCount = 0;
-
   Timer? _backgroundTimer;
   bool _isTracking = false;
-  bool _manuallyStopped = false;
-
-  // Queue to store unsent locations
-  final List<Map<String, dynamic>> _unsentQueue = [];
 
   LocationTracker({
     required this.vehicleId,
     this.baseUrl = 'https://myblogcrud.pythonanywhere.com',
   });
 
-  /// Check location permissions
+  /// ✅ Check location & notification permissions
   Future<bool> _checkPermissions() async {
     final locationStatus = await Permission.location.status;
     final backgroundStatus = await Permission.locationAlways.status;
 
     if (!locationStatus.isGranted || !backgroundStatus.isGranted) {
-      print("❌ Location permission not granted (must be requested in foreground)");
+      print("❌ Location permission not granted");
       return false;
     }
 
@@ -188,67 +181,58 @@ class LocationTracker {
     return true;
   }
 
-  /// Start tracking location periodically
+  /// 🚀 Start sending locations every X seconds
   Future<void> startTracking({String status = "start"}) async {
-    print("🔄 Starting tracking for status: $status");
     if (_isTracking) {
       print("⚠️ Already tracking, skipping...");
       return;
     }
 
-    _isTracking = true;
-    _manuallyStopped = false;
-
     final hasPermission = await _checkPermissions();
     if (!hasPermission) return;
 
-    // Send first location
+    _isTracking = true;
+
+    // Send first location immediately
     await _sendLocationOnce(status: status);
 
     // Start periodic updates
     _backgroundTimer?.cancel();
-    _backgroundTimer = Timer.periodic(Duration(seconds: 2), (_) async {
-      try {
-        final position = await Geolocator.getCurrentPosition();
-
-        _updateCount++;
-        print("📍 ($_updateCount) BG Location: ${position.latitude}, ${position.longitude}");
-
-        final locationData = {
-          "latitude": position.latitude,
-          "longitude": position.longitude,
-          "status": status ?? "start",
-        };
-
-        _unsentQueue.add(locationData); // add to queue
-        await _trySendQueue();
-      } catch (e) {
-        print("❌ Error getting location: $e");
-      }
+    _backgroundTimer = Timer.periodic(Duration(seconds: 1), (_) async {
+      await _sendLocationOnce(status: status);
     });
+
+    print("✅ Tracking started...");
   }
 
-  /// Try sending all queued locations
-  Future<void> _trySendQueue() async {
-    for (int i = 0; i < _unsentQueue.length; i++) {
-      final loc = _unsentQueue[i];
-      final success = await _sendLocationUpdate(
-        latitude: loc['latitude'],
-        longitude: loc['longitude'],
-        status: loc['status'],
-      );
+  /// ⏹ Stop tracking and send last location
+  Future<void> stopTracking({String status = "stop"}) async {
+    print("🛑 Stopping tracking...");
 
-      if (success) {
-        _unsentQueue.removeAt(i);
-        i--; // adjust index after removal
-      } else {
-        print("⚠️ Network failed, will retry later");
-        break; // stop sending, retry on next update
-      }
+    _isTracking = false;
+    _backgroundTimer?.cancel();
+    _backgroundTimer = null;
+
+    await _sendLocationOnce(status: status);
+
+    print("🛑 Tracking stopped, final location sent.");
+  }
+
+  /// 📡 Send one location update
+  Future<void> _sendLocationOnce({String status = "start"}) async {
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      await _sendLocationUpdate(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        status: status,
+      );
+    } catch (e) {
+      print("❌ Failed to get location: $e");
     }
   }
 
-  /// Send location update to server
+  /// 🌍 API request to send location
   Future<bool> _sendLocationUpdate({
     required double latitude,
     required double longitude,
@@ -270,7 +254,7 @@ class LocationTracker {
       );
 
       if (response.statusCode == 200) {
-        print("✅ Sent location successfully: ${response.body}");
+        print("✅ Sent location: $latitude,$longitude [Status: $status]");
         return true;
       } else {
         print("❌ Server error: ${response.statusCode} ${response.body}");
@@ -280,36 +264,6 @@ class LocationTracker {
       print("❌ Network error: $e");
       return false;
     }
-  }
-
-  /// Send location once (e.g., at start or stop)
-  Future<void> _sendLocationOnce({String status = "start"}) async {
-    try {
-      final position = await Geolocator.getCurrentPosition();
-      final locationData = {
-        "latitude": position.latitude,
-        "longitude": position.longitude,
-        "status": status,
-      };
-      _unsentQueue.add(locationData);
-      await _trySendQueue();
-    } catch (e) {
-      print("❌ Failed to get initial location: $e");
-    }
-  }
-
-  /// Stop tracking
-  Future<void> stopTracking({String status = "stop"}) async {
-    print("🛑 Stopping tracking...");
-
-    _manuallyStopped = true;
-    _isTracking = false;
-
-    _backgroundTimer?.cancel();
-    _backgroundTimer = null;
-
-    await _sendLocationOnce(status: status);
-    print("🛑 Final location sent. Tracking stopped.");
   }
 }
 

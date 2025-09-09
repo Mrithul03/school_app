@@ -35,8 +35,8 @@ android {
         applicationId = "com.zeon.schoolmanager"
         minSdk = 23
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.0"
+        versionCode = 9
+        versionName = "1.0.1+3"
     }
 
     signingConfigs {
@@ -51,13 +51,15 @@ android {
     }
 
     buildTypes {
-        getByName("release") {
-            // Disable shrinking unless you configure ProGuard/R8
-            isMinifyEnabled = false
-            isShrinkResources = false   // ✅ this fixes your current error
-            signingConfig = signingConfigs.getByName("release")
-        }
+    getByName("debug") {
+        // Removed .debug suffix so Firebase config matches
     }
+    release {
+        signingConfig = signingConfigs.getByName("release")
+        isMinifyEnabled = false
+        isShrinkResources = false
+    }
+}
 }
 
 dependencies {

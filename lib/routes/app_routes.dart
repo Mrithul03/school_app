@@ -36,9 +36,17 @@ class AppRoutes {
 
     liveTripTracking: (context) {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
-      final vehicleId = args['vehicle_id'] as int? ?? 0;
-      return LiveTripTrackingScreen(vehicleId: vehicleId);
+      final vehicleId = args['vehicleId'] as int? ?? 0; // updated key
+      final studentLat = args['studentLat'] as double? ?? 0.0;
+      final studentLng = args['studentLng'] as double? ?? 0.0;
+
+      return LiveTripTrackingScreen(
+        vehicleId: vehicleId,
+        studentLat: studentLat,
+        studentLng: studentLng,
+      );
     },
+
     routeManagement: (context) => RouteManagement(),
     paymentStatus: (context) => PaymentStatus(),
   };

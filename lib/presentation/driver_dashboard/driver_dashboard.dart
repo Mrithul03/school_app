@@ -21,6 +21,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io'; // for Platform
 import 'package:device_info_plus/device_info_plus.dart'; // for DeviceInfoPlugin
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
@@ -56,8 +58,8 @@ class _DriverDashboardState extends State<DriverDashboard>
     _loadUser();
   }
 
-  void _startTracking(String shiftType) async {
-    print("🔄 Request to start tracking with status: $shiftType");
+  void _startTracking() async {
+    print("🔄 Request to start tracking ");
 
     final service = FlutterBackgroundService();
 
@@ -72,7 +74,7 @@ class _DriverDashboardState extends State<DriverDashboard>
     }
 
     print(
-        "📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
+        "📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId}");
     service.invoke('start-tracking', {
       "vehicle_id": widget.vehicleId,
       "status": 'start',
@@ -81,16 +83,27 @@ class _DriverDashboardState extends State<DriverDashboard>
     setState(() {
       _isTracking = true;
     });
+
+    // ✅ Show toast after successfully starting tracking
+    Fluttertoast.showToast(
+      msg: "🚗 Driver started sending location",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.green,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+
     print("✅ _isTracking set to true");
   }
 
-  void _stopTracking(String shiftType) {
-    print("🛑 Request to stop tracking with status: $shiftType");
+  void _stopTracking() {
+    print("🛑 Request to stop tracking ");
 
     final service = FlutterBackgroundService();
 
     print(
-        "📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId} and status: $shiftType");
+        "📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId}");
     service.invoke('stop-tracking', {
       "vehicle_id": widget.vehicleId,
       "status": 'stop',
@@ -103,42 +116,41 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Future<bool> _requestPermissions() async {
-  // 1️⃣ Foreground location
-  var foregroundStatus = await Permission.locationWhenInUse.request();
-  if (!foregroundStatus.isGranted) {
-    print("❌ Foreground location permission denied");
-    return false;
-  }
-
-  // 2️⃣ Background location (only if foreground granted)
-  // Note: On Android 10+, you must ask separately for "always" location.
-  var backgroundStatus = await Permission.locationAlways.request();
-  if (!backgroundStatus.isGranted) {
-    print("❌ Background location permission denied");
-    return false;
-  }
-
-  // 3️⃣ Notification permission (needed for foreground service)
-  var notificationStatus = await Permission.notification.request();
-  if (!notificationStatus.isGranted) {
-    print("❌ Notification permission denied");
-    return false;
-  }
-
-  // 4️⃣ Battery optimization (ask if restricted)
-  if (await Permission.ignoreBatteryOptimizations.isDenied) {
-    print("⚠️ Battery optimization not ignored. Requesting...");
-    var batteryStatus = await Permission.ignoreBatteryOptimizations.request();
-    if (!batteryStatus.isGranted) {
-      print("❌ Battery optimization not granted");
-      return false; // User must allow manually
+    // 1️⃣ Foreground location
+    var foregroundStatus = await Permission.locationWhenInUse.request();
+    if (!foregroundStatus.isGranted) {
+      print("❌ Foreground location permission denied");
+      return false;
     }
+
+    // 2️⃣ Background location (only if foreground granted)
+    // Note: On Android 10+, you must ask separately for "always" location.
+    var backgroundStatus = await Permission.locationAlways.request();
+    if (!backgroundStatus.isGranted) {
+      print("❌ Background location permission denied");
+      return false;
+    }
+
+    // 3️⃣ Notification permission (needed for foreground service)
+    var notificationStatus = await Permission.notification.request();
+    if (!notificationStatus.isGranted) {
+      print("❌ Notification permission denied");
+      return false;
+    }
+
+    // 4️⃣ Battery optimization (ask if restricted)
+    if (await Permission.ignoreBatteryOptimizations.isDenied) {
+      print("⚠️ Battery optimization not ignored. Requesting...");
+      var batteryStatus = await Permission.ignoreBatteryOptimizations.request();
+      if (!batteryStatus.isGranted) {
+        print("❌ Battery optimization not granted");
+        return false; // User must allow manually
+      }
+    }
+
+    print("✅ All permissions granted including battery optimization");
+    return true;
   }
-
-  print("✅ All permissions granted including battery optimization");
-  return true;
-}
-
 
   Future<void> _loadUser() async {
     setState(() => isLoading = true);
@@ -190,6 +202,7 @@ class _DriverDashboardState extends State<DriverDashboard>
           // Since fetchedRoutes is a list, assign directly
           _routes = fetchedRoutes
               .map((route) => {
+                    'id': route['id'],
                     'student_name': route['student']?['name'],
                     'student_phone': route['student']?['phone'],
                     'hom_lat': route['student']?['home_lat'],
@@ -272,146 +285,284 @@ class _DriverDashboardState extends State<DriverDashboard>
   ];
 
   void _openPaymentForm(BuildContext context, Map<String, dynamic> student) {
-    final _formKey = GlobalKey<FormState>();
-    final TextEditingController monthController = TextEditingController();
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController dateController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController amountController = TextEditingController();
+  final TextEditingController dateController = TextEditingController();
 
-    String selectedStatus = "Unpaid";
+  int selectedMonth = DateTime.now().month; // 1-12
+  int selectedYear = DateTime.now().year;
+
+  String selectedStatus = "Paid";
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text("Mark Payment - ${student['student_name']}"),
+        content: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Month & Year dropdown
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: selectedMonth,
+                        decoration: const InputDecoration(labelText: "Month"),
+                        items: List.generate(12, (index) {
+                          final monthValue = index + 1;
+                          final monthName = [
+                            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+                          ][index];
+                          return DropdownMenuItem(
+                            value: monthValue,
+                            child: Text(monthName),
+                          );
+                        }),
+                        onChanged: (val) {
+                          if (val != null) selectedMonth = val;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: selectedYear,
+                        decoration: const InputDecoration(labelText: "Year"),
+                        items: List.generate(5, (index) {
+                          final year = DateTime.now().year - 2 + index;
+                          return DropdownMenuItem(
+                            value: year,
+                            child: Text(year.toString()),
+                          );
+                        }),
+                        onChanged: (val) {
+                          if (val != null) selectedYear = val;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Amount
+                TextFormField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Amount"),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return "Enter amount";
+                    if (double.tryParse(value) == null) return "Enter valid number";
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Paid / Unpaid dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(labelText: "Status"),
+                  items: ["Paid", "Unpaid"].map((status) {
+                    return DropdownMenuItem(
+                      value: status,
+                      child: Text(status),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      selectedStatus = val;
+                      (context as Element).markNeedsBuild();
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Paid Date (only if Paid)
+                TextFormField(
+                  controller: dateController,
+                  readOnly: true,
+                  enabled: selectedStatus == "Paid",
+                  decoration: const InputDecoration(
+                    labelText: "Paid Date",
+                    suffixIcon: Icon(Icons.calendar_today),
+                  ),
+                  onTap: selectedStatus == "Paid"
+                      ? () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            // Format as YYYY-MM-DD
+                            dateController.text = DateFormat('yyyy-MM-dd').format(picked);
+                          }
+                        }
+                      : null,
+                  validator: (value) {
+                    if (selectedStatus == "Paid" &&
+                        (value == null || value.isEmpty)) {
+                      return "Select paid date";
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: const Text("Submit"),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final token = prefs.getString("device_token") ?? "";
+
+              if (_formKey.currentState!.validate()) {
+                final success = await ApiService().createPayment(
+                  studentId: student['id'],
+                  month: selectedMonth, // send as int
+                  year: selectedYear,   // send as int
+                  amount: double.tryParse(amountController.text) ?? 0,
+                  isPaid: selectedStatus == "Paid",
+                  paidOn: selectedStatus == "Paid" &&
+                          dateController.text.isNotEmpty
+                      ? dateController.text // "YYYY-MM-DD"
+                      : null,
+                  token: token,
+                );
+
+                if (success) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("✅ Payment saved")),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("❌ Failed to save payment")),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
+  void _showEditDialog(BuildContext context, Map<String, dynamic> route) {
+    final TextEditingController orderController =
+        TextEditingController(text: route['route_order']?.toString() ?? "");
+    final TextEditingController tripNumberController =
+        TextEditingController(text: route['trip_number']?.toString() ?? "");
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
-          title: Text("Mark Payment - ${student['student_name']}"),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Month picker (Year-Month only, default day = 01)
-                  TextFormField(
-                    controller: monthController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: "Month",
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                    onTap: () async {
-                      final now = DateTime.now();
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: now,
-                        firstDate: DateTime(now.year - 1),
-                        lastDate: DateTime(now.year + 1),
-                      );
-                      if (picked != null) {
-                        monthController.text =
-                            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-01";
-                      }
-                    },
-                    validator: (value) =>
-                        value == null || value.isEmpty ? "Select month" : null,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Edit Route"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Route Order (editable)
+              TextField(
+                controller: orderController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: "Route Order",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-
-                  // Amount
-                  TextFormField(
-                    controller: amountController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Amount"),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Enter amount";
-                      }
-                      if (double.tryParse(value) == null) {
-                        return "Enter valid number";
-                      }
-                      return null;
-                    },
-                  ),
-
-                  // Paid date (only if Paid)
-                  TextFormField(
-                    controller: dateController,
-                    readOnly: true,
-                    enabled: selectedStatus == "Paid",
-                    decoration: const InputDecoration(
-                      labelText: "Paid Date",
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                    onTap: selectedStatus == "Paid"
-                        ? () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2100),
-                            );
-                            if (picked != null) {
-                              dateController.text =
-                                  picked.toIso8601String().split("T")[0];
-                            }
-                          }
-                        : null,
-                  ),
-
-                  // Paid / Unpaid dropdown
-                  DropdownButtonFormField<String>(
-                    value: selectedStatus,
-                    decoration: const InputDecoration(labelText: "Status"),
-                    items: ["Paid", "Unpaid"].map((status) {
-                      return DropdownMenuItem(
-                        value: status,
-                        child: Text(status),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        selectedStatus = val;
-                        // rebuild dialog to enable/disable Paid Date field
-                        (context as Element).markNeedsBuild();
-                      }
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+
+              // Trip Number (editable)
+              TextField(
+                controller: tripNumberController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: "Trip Number",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
+              onPressed: () => Navigator.pop(ctx),
               child: const Text("Cancel"),
-              onPressed: () => Navigator.pop(context),
             ),
             ElevatedButton(
-              child: const Text("Submit"),
+              child: const Text("Save"),
               onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                final token = prefs.getString("device_token") ?? "";
-
-                if (_formKey.currentState!.validate()) {
-                  final success = await ApiService().createPayment(
-                    studentId: student['id'], // ✅ using ID from button
-                    month: monthController.text,
-                    amount: double.tryParse(amountController.text) ?? 0,
-                    isPaid: selectedStatus == "Paid",
-                    paidOn: selectedStatus == "Paid" &&
-                            dateController.text.isNotEmpty
-                        ? dateController.text
-                        : null,
-                    token: token, // ✅ token passed
+                // Validate route order
+                final newOrder = int.tryParse(orderController.text);
+                if (newOrder == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("⚠️ Please enter a valid route order")),
                   );
+                  return;
+                }
 
-                  if (success) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("✅ Payment saved")),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("❌ Failed to save payment")),
-                    );
-                  }
+                // Validate trip number
+                final newTripNumber = int.tryParse(tripNumberController.text);
+                if (newTripNumber == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("⚠️ Please enter a valid trip number")),
+                  );
+                  return;
+                }
+
+                // Validate route id
+                final routeId = int.tryParse(route['id']?.toString() ?? "");
+                if (routeId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("⚠️ Invalid Route ID")),
+                  );
+                  return;
+                }
+
+                Navigator.pop(ctx); // close popup
+
+                final prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString('device_token') ?? "";
+
+                final api = ApiService();
+                final success = await api.editRouteOrder(
+                  routeId,
+                  token,
+                  newOrder,
+                  newTripNumber, // pass trip_number as named parameter
+                );
+
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("✅ Route updated successfully")),
+                  );
+                  _loadUser(); // reload routes
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("❌ Failed to update route")),
+                  );
                 }
               },
             ),
@@ -532,88 +683,106 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Widget _buildTodayTab() {
-    return RefreshIndicator(
-      onRefresh: _refreshData,
-      color: AppTheme.lightTheme.colorScheme.primary,
-      child: SingleChildScrollView(
-        physics: AlwaysScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            SizedBox(height: 2.h),
+  return RefreshIndicator(
+    onRefresh: _refreshData,
+    color: AppTheme.lightTheme.colorScheme.primary,
+    child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          SizedBox(height: 2.h),
 
-            // 🚍 Morning Shift Card
-            if (isLoading) ...[
-              Center(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 20.h),
-                  child: const CircularProgressIndicator(),
+          // ⏳ Loading Spinner
+          if (isLoading) ...[
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 20.h),
+                child: const CircularProgressIndicator(),
+              ),
+            ),
+          ]
+          // ✅ Data Loaded
+          else ...[
+            // 🚦 Start / Stop Trip Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isTracking ? Colors.red : Colors.blue,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  if (!_isTracking) {
+                    bool granted = await _requestPermissions();
+                    if (granted) {
+                      _startTracking();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "Location & background permissions required to start trip",
+                          ),
+                        ),
+                      );
+                    }
+                  } else {
+                    // 🛑 Confirmation before stopping
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Stop Tracking"),
+                        content: const Text(
+                            "Are you sure you want to stop sending location?"),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text("Cancel"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text("Stop"),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      _stopTracking();
+                    }
+                  }
+                },
+                child: Text(
+                  _isTracking ? "Stop Trip" : "Start Trip",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ]
-            // ✅ Data Loaded
-            else ...[
-              ShiftStatusCard(
-                shiftType: 'Morning',
-                isActive: _isMorningShiftActive,
-                onStartTrip: () async {
-                  bool granted = await _requestPermissions();
-                  if (granted) {
-                    _toggleShift('morning', true);
-                    _startTracking('morning');
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            "Location & background permissions required to start trip"),
-                      ),
-                    );
-                  }
-                },
-                onEndTrip: () {
-                  _toggleShift('morning', false);
-                  _stopTracking('morning');
-                },
-              ),
+            ),
 
-// 🌙 Evening Shift Card
-              ShiftStatusCard(
-                shiftType: 'Evening',
-                isActive: _isEveningShiftActive,
-                onStartTrip: () async {
-                  bool granted = await _requestPermissions();
-                  if (granted) {
-                    _toggleShift('evening', true); // ✅ fixed
-                    _startTracking('evening'); // ✅ fixed
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            "Location & background permissions required to start trip"),
-                      ),
-                    );
-                  }
-                },
-                onEndTrip: () {
-                  _toggleShift('evening', false);
-                  _stopTracking('evening'); // ✅ fixed
-                },
-              ),
+            // ⚙️ Quick Actions
+            QuickActionsBar(
+              onEmergencyTap: _showEmergencyContacts,
+              onSettingsTap: _openSettings,
+            ),
 
-              // ⚙️ Quick Actions
-              QuickActionsBar(
-                // onNavigationTap: _openNavigation,
-                onEmergencyTap: _showEmergencyContacts,
-                // onRefreshTap: _refreshData,
-                onSettingsTap: _openSettings,
-              ),
-
-              SizedBox(height: 10.h),
-            ],
+            SizedBox(height: 10.h),
           ],
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Widget _buildStudentsTab() {
   //   return RefreshIndicator(
@@ -950,6 +1119,20 @@ class _DriverDashboardState extends State<DriverDashboard>
                             ),
                           ],
                         ),
+                      ),
+                      // ✏️ Edit Button
+                      IconButton(
+                        icon: Icon(Icons.edit,
+                            color: AppTheme.lightTheme.colorScheme.primary),
+                        onPressed: () {
+                          _showEditDialog(context, {
+                            ...route,
+                            'id': route['id'], // 👈 normalize route_id → id
+                            'shift': route['shift'], // 👈 from loop
+                            'trip_number':
+                                route['trip_number'], // 👈 from trip section
+                          });
+                        },
                       ),
                     ],
                   ),

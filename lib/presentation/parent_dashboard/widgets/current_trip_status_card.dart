@@ -106,20 +106,20 @@ class CurrentTripStatusCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CustomIconWidget(
-                        iconName: _getStatusIcon().codePoint.toString(),
-                        color: _getStatusColor(),
-                        size: 16,
-                      ),
-                      SizedBox(width: 1.w),
-                      Text(
-                        status,
-                        style:
-                            Theme.of(context).textTheme.labelMedium?.copyWith(
-                                  color: _getStatusColor(),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
+                      // CustomIconWidget(
+                      //   iconName: _getStatusIcon().codePoint.toString(),
+                      //   color: _getStatusColor(),
+                      //   size: 16,
+                      // ),
+                      // SizedBox(width: 1.w),
+                      // Text(
+                      //   status,
+                      //   style:
+                      //       Theme.of(context).textTheme.labelMedium?.copyWith(
+                      //             color: _getStatusColor(),
+                      //             fontWeight: FontWeight.w600,
+                      //           ),
+                      // ),
                     ],
                   ),
                 ),
