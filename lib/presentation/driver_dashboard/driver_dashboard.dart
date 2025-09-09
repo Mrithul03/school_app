@@ -23,6 +23,7 @@ import 'dart:io'; // for Platform
 import 'package:device_info_plus/device_info_plus.dart'; // for DeviceInfoPlugin
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DriverDashboard extends StatefulWidget {
   final int vehicleId;
@@ -73,8 +74,7 @@ class _DriverDashboardState extends State<DriverDashboard>
       print("⚠️ Background service already running");
     }
 
-    print(
-        "📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId}");
+    print("📡 Invoking 'start-tracking' with vehicleId: ${widget.vehicleId}");
     service.invoke('start-tracking', {
       "vehicle_id": widget.vehicleId,
       "status": 'start',
@@ -102,8 +102,7 @@ class _DriverDashboardState extends State<DriverDashboard>
 
     final service = FlutterBackgroundService();
 
-    print(
-        "📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId}");
+    print("📡 Invoking 'stop-tracking' with vehicleId: ${widget.vehicleId}");
     service.invoke('stop-tracking', {
       "vehicle_id": widget.vehicleId,
       "status": 'stop',
@@ -285,181 +284,192 @@ class _DriverDashboardState extends State<DriverDashboard>
   ];
 
   void _openPaymentForm(BuildContext context, Map<String, dynamic> student) {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController amountController = TextEditingController();
-  final TextEditingController dateController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    final TextEditingController amountController = TextEditingController();
+    final TextEditingController dateController = TextEditingController();
 
-  int selectedMonth = DateTime.now().month; // 1-12
-  int selectedYear = DateTime.now().year;
+    int selectedMonth = DateTime.now().month; // 1-12
+    int selectedYear = DateTime.now().year;
 
-  String selectedStatus = "Paid";
+    String selectedStatus = "Paid";
 
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text("Mark Payment - ${student['student_name']}"),
-        content: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Month & Year dropdown
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        value: selectedMonth,
-                        decoration: const InputDecoration(labelText: "Month"),
-                        items: List.generate(12, (index) {
-                          final monthValue = index + 1;
-                          final monthName = [
-                            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-                          ][index];
-                          return DropdownMenuItem(
-                            value: monthValue,
-                            child: Text(monthName),
-                          );
-                        }),
-                        onChanged: (val) {
-                          if (val != null) selectedMonth = val;
-                        },
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Mark Payment - ${student['student_name']}"),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Month & Year dropdown
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: selectedMonth,
+                          decoration: const InputDecoration(labelText: "Month"),
+                          items: List.generate(12, (index) {
+                            final monthValue = index + 1;
+                            final monthName = [
+                              "Jan",
+                              "Feb",
+                              "Mar",
+                              "Apr",
+                              "May",
+                              "Jun",
+                              "Jul",
+                              "Aug",
+                              "Sep",
+                              "Oct",
+                              "Nov",
+                              "Dec"
+                            ][index];
+                            return DropdownMenuItem(
+                              value: monthValue,
+                              child: Text(monthName),
+                            );
+                          }),
+                          onChanged: (val) {
+                            if (val != null) selectedMonth = val;
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        value: selectedYear,
-                        decoration: const InputDecoration(labelText: "Year"),
-                        items: List.generate(5, (index) {
-                          final year = DateTime.now().year - 2 + index;
-                          return DropdownMenuItem(
-                            value: year,
-                            child: Text(year.toString()),
-                          );
-                        }),
-                        onChanged: (val) {
-                          if (val != null) selectedYear = val;
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: selectedYear,
+                          decoration: const InputDecoration(labelText: "Year"),
+                          items: List.generate(5, (index) {
+                            final year = DateTime.now().year - 2 + index;
+                            return DropdownMenuItem(
+                              value: year,
+                              child: Text(year.toString()),
+                            );
+                          }),
+                          onChanged: (val) {
+                            if (val != null) selectedYear = val;
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Amount
-                TextFormField(
-                  controller: amountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Amount"),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return "Enter amount";
-                    if (double.tryParse(value) == null) return "Enter valid number";
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Paid / Unpaid dropdown
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  decoration: const InputDecoration(labelText: "Status"),
-                  items: ["Paid", "Unpaid"].map((status) {
-                    return DropdownMenuItem(
-                      value: status,
-                      child: Text(status),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      selectedStatus = val;
-                      (context as Element).markNeedsBuild();
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Paid Date (only if Paid)
-                TextFormField(
-                  controller: dateController,
-                  readOnly: true,
-                  enabled: selectedStatus == "Paid",
-                  decoration: const InputDecoration(
-                    labelText: "Paid Date",
-                    suffixIcon: Icon(Icons.calendar_today),
+                    ],
                   ),
-                  onTap: selectedStatus == "Paid"
-                      ? () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2100),
-                          );
-                          if (picked != null) {
-                            // Format as YYYY-MM-DD
-                            dateController.text = DateFormat('yyyy-MM-dd').format(picked);
+                  const SizedBox(height: 12),
+
+                  // Amount
+                  TextFormField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Amount"),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return "Enter amount";
+                      if (double.tryParse(value) == null)
+                        return "Enter valid number";
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Paid / Unpaid dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: const InputDecoration(labelText: "Status"),
+                    items: ["Paid", "Unpaid"].map((status) {
+                      return DropdownMenuItem(
+                        value: status,
+                        child: Text(status),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        selectedStatus = val;
+                        (context as Element).markNeedsBuild();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Paid Date (only if Paid)
+                  TextFormField(
+                    controller: dateController,
+                    readOnly: true,
+                    enabled: selectedStatus == "Paid",
+                    decoration: const InputDecoration(
+                      labelText: "Paid Date",
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    onTap: selectedStatus == "Paid"
+                        ? () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              // Format as YYYY-MM-DD
+                              dateController.text =
+                                  DateFormat('yyyy-MM-dd').format(picked);
+                            }
                           }
-                        }
-                      : null,
-                  validator: (value) {
-                    if (selectedStatus == "Paid" &&
-                        (value == null || value.isEmpty)) {
-                      return "Select paid date";
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                        : null,
+                    validator: (value) {
+                      if (selectedStatus == "Paid" &&
+                          (value == null || value.isEmpty)) {
+                        return "Select paid date";
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            child: const Text("Submit"),
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              final token = prefs.getString("device_token") ?? "";
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: const Text("Submit"),
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString("device_token") ?? "";
 
-              if (_formKey.currentState!.validate()) {
-                final success = await ApiService().createPayment(
-                  studentId: student['id'],
-                  month: selectedMonth, // send as int
-                  year: selectedYear,   // send as int
-                  amount: double.tryParse(amountController.text) ?? 0,
-                  isPaid: selectedStatus == "Paid",
-                  paidOn: selectedStatus == "Paid" &&
-                          dateController.text.isNotEmpty
-                      ? dateController.text // "YYYY-MM-DD"
-                      : null,
-                  token: token,
-                );
+                if (_formKey.currentState!.validate()) {
+                  final success = await ApiService().createPayment(
+                    studentId: student['id'],
+                    month: selectedMonth, // send as int
+                    year: selectedYear, // send as int
+                    amount: double.tryParse(amountController.text) ?? 0,
+                    isPaid: selectedStatus == "Paid",
+                    paidOn: selectedStatus == "Paid" &&
+                            dateController.text.isNotEmpty
+                        ? dateController.text // "YYYY-MM-DD"
+                        : null,
+                    token: token,
+                  );
 
-                if (success) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("✅ Payment saved")),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("❌ Failed to save payment")),
-                  );
+                  if (success) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("✅ Payment saved")),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("❌ Failed to save payment")),
+                    );
+                  }
                 }
-              }
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
-
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showEditDialog(BuildContext context, Map<String, dynamic> route) {
     final TextEditingController orderController =
@@ -683,106 +693,107 @@ class _DriverDashboardState extends State<DriverDashboard>
   }
 
   Widget _buildTodayTab() {
-  return RefreshIndicator(
-    onRefresh: _refreshData,
-    color: AppTheme.lightTheme.colorScheme.primary,
-    child: SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          SizedBox(height: 2.h),
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: AppTheme.lightTheme.colorScheme.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            SizedBox(height: 2.h),
 
-          // ⏳ Loading Spinner
-          if (isLoading) ...[
-            Center(
-              child: Padding(
-                padding: EdgeInsets.only(top: 20.h),
-                child: const CircularProgressIndicator(),
-              ),
-            ),
-          ]
-          // ✅ Data Loaded
-          else ...[
-            // 🚦 Start / Stop Trip Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isTracking ? Colors.red : Colors.blue,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            // ⏳ Loading Spinner
+            if (isLoading) ...[
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 20.h),
+                  child: const CircularProgressIndicator(),
                 ),
-                onPressed: () async {
-                  if (!_isTracking) {
-                    bool granted = await _requestPermissions();
-                    if (granted) {
-                      _startTracking();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            "Location & background permissions required to start trip",
+              ),
+            ]
+            // ✅ Data Loaded
+            else ...[
+              // 🚦 Start / Stop Trip Button
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isTracking ? Colors.red : Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
+                    if (!_isTracking) {
+                      bool granted = await _requestPermissions();
+                      if (granted) {
+                        _startTracking();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Location & background permissions required to start trip",
+                            ),
                           ),
+                        );
+                      }
+                    } else {
+                      // 🛑 Confirmation before stopping
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text("Stop Tracking"),
+                          content: const Text(
+                              "Are you sure you want to stop sending location?"),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text("Cancel"),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              child: const Text("Stop"),
+                            ),
+                          ],
                         ),
                       );
-                    }
-                  } else {
-                    // 🛑 Confirmation before stopping
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text("Stop Tracking"),
-                        content: const Text(
-                            "Are you sure you want to stop sending location?"),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text("Cancel"),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                            ),
-                            child: const Text("Stop"),
-                          ),
-                        ],
-                      ),
-                    );
 
-                    if (confirm == true) {
-                      _stopTracking();
+                      if (confirm == true) {
+                        _stopTracking();
+                      }
                     }
-                  }
-                },
-                child: Text(
-                  _isTracking ? "Stop Trip" : "Start Trip",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  },
+                  child: Text(
+                    _isTracking ? "Stop Trip" : "Start Trip",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // ⚙️ Quick Actions
-            QuickActionsBar(
-              onEmergencyTap: _showEmergencyContacts,
-              onSettingsTap: _openSettings,
-            ),
+              // ⚙️ Quick Actions
+              QuickActionsBar(
+                onEmergencyTap: _showEmergencyContacts,
+                onSettingsTap: _openSettings,
+              ),
 
-            SizedBox(height: 10.h),
+              SizedBox(height: 10.h),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // Widget _buildStudentsTab() {
   //   return RefreshIndicator(
@@ -947,7 +958,24 @@ class _DriverDashboardState extends State<DriverDashboard>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (student['student_phone'] != null)
-                          Text("📞 ${student['student_phone']}"),
+                          GestureDetector(
+                            onTap: () async {
+                              final Uri callUri = Uri(
+                                  scheme: 'tel',
+                                  path: student['student_phone']);
+                              if (await canLaunchUrl(callUri)) {
+                                await launchUrl(callUri);
+                              } else {
+                                print("❌ Could not launch dialer");
+                              }
+                            },
+                            child: Text(
+                              "📞 ${student['student_phone']}",
+                              style: TextStyle(
+                                color: Colors.blue, // makes it look tappable
+                              ),
+                            ),
+                          ),
                         if (student.containsKey('last_payment'))
                           Text(
                             "💰 Last Payment: ${student['last_payment']}",

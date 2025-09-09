@@ -1,6 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+
+
+class FirebaseApi {
+  final _firebaseMessaging = FirebaseMessaging.instance;
+
+  Future<void> initNotification() async {
+    await _firebaseMessaging.requestPermission();
+    final fCMToken = await _firebaseMessaging.getToken();
+    print('FCM Token: $fCMToken');
+  }
+}
 
 // ✅ Define your base URL once (e.g., from config file)
 class ApiService {
@@ -43,6 +56,13 @@ class ApiService {
 }
 
 
+Future<String?> _firebaseToken() async {
+    try {
+      return await FirebaseMessaging.instance.getToken();
+    } catch (e) {}
+    return null;
+  }
+
 
   Future<Map<String, dynamic>> login({
     required String schoolCode,
@@ -52,6 +72,8 @@ class ApiService {
     String? vehicle,
   }) async {
     final url = Uri.parse('$baseUrl/api/login/');
+    final fCMToken = await _firebaseToken();
+    print('📲 Sending FCM Token: $fCMToken');
 
     try {
       final response = await http.post(
@@ -62,6 +84,7 @@ class ApiService {
           'phone': phone,
           'password': password,
           'role': role,
+          'fcm_device_token': fCMToken,
           if (vehicle != null)
             'vehicle': vehicle, // <-- include only if present
         }),

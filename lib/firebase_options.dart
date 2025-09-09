@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'school-manager-aeaf5.firebasestorage.app',
     measurementId: 'G-XJM96JDPVY',
   );
+
 }
