@@ -35,8 +35,8 @@ android {
         applicationId = "com.zeon.schoolmanager"
         minSdk = 23
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.0.1+3"
+        versionCode = 10
+        versionName = "1.0.1+4"
     }
 
     signingConfigs {

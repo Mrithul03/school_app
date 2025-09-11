@@ -3,8 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-
-
 class FirebaseApi {
   final _firebaseMessaging = FirebaseMessaging.instance;
 
@@ -20,49 +18,48 @@ class ApiService {
   static const String baseUrl =
       // 'http://127.0.0.1:8000/';
       // 'http://192.168.1.17:8000';
-      'https://myblogcrud.pythonanywhere.com';
-  // 'https://school-web-wfu4.onrender.com';
-
+      // 'https://myblogcrud.pythonanywhere.com';
+      // 'https://school-web-wfu4.onrender.com';
+      'https://blueeyesholidays.com/api';
 
   /// Register (complete setup by parent)
   static Future<Map<String, dynamic>> parentRegister({
-  required String phone,
-  required String password,
-  required String parentName,
-  required String studentName,
-}) async {
-  final url = Uri.parse("$baseUrl/api/parent/register/");
+    required String phone,
+    required String password,
+    required String parentName,
+    required String studentName,
+  }) async {
+    final url = Uri.parse("$baseUrl/api/parent/register/");
 
-  final response = await http.patch(url, body: {
-    "phone": phone,
-    "password": password,
-    "parent_name": parentName,
-    "student_name": studentName,
-  });
+    final response = await http.patch(url, body: {
+      "phone": phone,
+      "password": password,
+      "parent_name": parentName,
+      "student_name": studentName,
+    });
 
-  print("🔗 API CALL: $url");
-  print("📩 Status: ${response.statusCode}");
-  print("📩 Response: ${response.body}");
+    print("🔗 API CALL: $url");
+    print("📩 Status: ${response.statusCode}");
+    print("📩 Response: ${response.body}");
 
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    // Instead of parsing HTML as JSON
-    return {
-      "success": false,
-      "error": "Server error: ${response.statusCode}. ${response.reasonPhrase}"
-    };
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      // Instead of parsing HTML as JSON
+      return {
+        "success": false,
+        "error":
+            "Server error: ${response.statusCode}. ${response.reasonPhrase}"
+      };
+    }
   }
-}
 
-
-Future<String?> _firebaseToken() async {
+  Future<String?> _firebaseToken() async {
     try {
       return await FirebaseMessaging.instance.getToken();
     } catch (e) {}
     return null;
   }
-
 
   Future<Map<String, dynamic>> login({
     required String schoolCode,
@@ -263,107 +260,110 @@ Future<String?> _firebaseToken() async {
     }
   }
 
+static String? lastError;
+
   Future<bool> createPayment({
-  required int studentId,
-  required int month,   // 1-12
-  required int year,    // add this!
-  required double amount,
-  required bool isPaid,
-  String? paidOn,
-  required String token,
-}) async {
-  try {
-    final response = await http.post(
-      Uri.parse("$baseUrl/api/payment/"),
+    required int studentId,
+    required int month,
+    required int year,
+    required double amount,
+    required bool isPaid,
+    String? paidOn,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/api/payment/"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Token $token",
+        },
+        body: jsonEncode({
+          "student_id": studentId,
+          "month": month,
+          "year": year,
+          "amount": amount.toStringAsFixed(2),
+          "is_paid": isPaid,
+          if (paidOn != null) "paid_on": paidOn,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        lastError = null; // ✅ clear error
+        return true;
+      } else {
+        lastError = response.body; // ✅ save error
+        return false;
+      }
+    } catch (e) {
+      lastError = e.toString(); // ✅ save exception
+      return false;
+    }
+  }
+
+
+  Future<List<dynamic>> getPayments(String token) async {
+    final url = Uri.parse("$baseUrl/api/payment-list/");
+    final response = await http.get(
+      url,
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Token $token",
       },
-      body: jsonEncode({
-        "student_id": studentId,
-        "month": month,
-        "year": year,          // send year as int
-        "amount": amount,
-        "is_paid": isPaid,
-        "paid_on": paidOn,     // must be "YYYY-MM-DD" string or null
-      }),
     );
 
-    if (response.statusCode == 201) return true;
-    print("❌ Failed: ${response.body}");
-    return false;
-  } catch (e) {
-    print("⚠️ Error: $e");
-    return false;
+    print('📦 Response payment list Status Code: ${response.statusCode}');
+    print('📨 Response payment list Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      print('✅ Student payment list fetched: $data');
+      return data;
+    } else {
+      print('❌ Failed to fetch payment list');
+      return [];
+    }
   }
-}
-
-
-  Future<List<dynamic>> getPayments(String token) async {
-  final url = Uri.parse("$baseUrl/api/payment-list/");
-  final response = await http.get(
-    url,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Token $token",
-    },
-  );
-
-  print('📦 Response payment list Status Code: ${response.statusCode}');
-  print('📨 Response payment list Body: ${response.body}');
-
-  if (response.statusCode == 200) {
-    final data = jsonDecode(utf8.decode(response.bodyBytes));
-    print('✅ Student payment list fetched: $data');
-    return data;
-  } else {
-    print('❌ Failed to fetch payment list');
-    return [];
-  }
-}
-
 
   Future<bool> editRouteOrder(
     int routeId,
     String token,
     int newOrder,
     int newTripNumber, // ✅ added trip number
-) async {
-  try {
-    final url = Uri.parse('$baseUrl/api/routes/$routeId/edit-route-order/');
+  ) async {
+    try {
+      final url = Uri.parse('$baseUrl/api/routes/$routeId/edit-route-order/');
 
-    final response = await http.patch(
-      url,
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'route_order': newOrder,
-        'trip_number': newTripNumber, // ✅ send trip number to API
-      }),
-    );
+      final response = await http.patch(
+        url,
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'route_order': newOrder,
+          'trip_number': newTripNumber, // ✅ send trip number to API
+        }),
+      );
 
-    print('📦 Status: ${response.statusCode}');
-    print('📨 Body: ${response.body}');
+      print('📦 Status: ${response.statusCode}');
+      print('📨 Body: ${response.body}');
 
-    return response.statusCode == 200;
-  } catch (e) {
-    print('⚠️ Error editing route order: $e');
-    return false;
+      return response.statusCode == 200;
+    } catch (e) {
+      print('⚠️ Error editing route order: $e');
+      return false;
+    }
   }
-}
-
-
 
   // Future<bool> editPayment(
   //   int paymentId,
   //   String token, {
   //   int? studentId,
-  //   String? month, 
+  //   String? month,
   //   String? amount,
   //   bool? isPaid,
-  //   String? paidOn, 
+  //   String? paidOn,
   // }) async {
   //   try {
   //     final url = Uri.parse('$baseUrl/api/payment/$paymentId/update-payment/');

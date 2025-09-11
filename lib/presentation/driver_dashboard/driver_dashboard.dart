@@ -44,6 +44,7 @@ class _DriverDashboardState extends State<DriverDashboard>
   List<Map<String, dynamic>> childrenData = [];
   List<Map<String, dynamic>> _routes = [];
   List<Map<String, dynamic>> studentlist = [];
+  List<Map<String, dynamic>> paymentList = [];
 
   // Map<String, dynamic>? routes;
 
@@ -172,6 +173,9 @@ class _DriverDashboardState extends State<DriverDashboard>
       final fetchedStudentList = await api.fetchStudentList(token, vehicleId);
       print('studentlist: $fetchedStudentList');
 
+      final payments = await api.getPayments(token);
+        print('loadpaymentdata: $payments');
+
       if (data != null &&
           fetchedRoutes != null &&
           fetchedRoutes.isNotEmpty &&
@@ -223,6 +227,10 @@ class _DriverDashboardState extends State<DriverDashboard>
                     'school': student['school']?['name'],
                   })
               .toList();
+
+          setState(() {
+              paymentList = List<Map<String, dynamic>>.from(payments);
+            });
 
           print('studentdatata: $_students');
           print('currentTripData: $childrenData');
@@ -283,193 +291,200 @@ class _DriverDashboardState extends State<DriverDashboard>
     {"name": "Medical Emergency", "type": "Medical", "phone": "911"}
   ];
 
+
   void _openPaymentForm(BuildContext context, Map<String, dynamic> student) {
-    final _formKey = GlobalKey<FormState>();
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController dateController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController amountController = TextEditingController();
+  final TextEditingController dateController = TextEditingController();
 
-    int selectedMonth = DateTime.now().month; // 1-12
-    int selectedYear = DateTime.now().year;
+  int selectedYear = DateTime.now().year;
+  String selectedStatus = "Paid";
 
-    String selectedStatus = "Paid";
+  // ✅ Get unpaid months for this student/year
+  final unpaidMonths = List.generate(12, (index) => index + 1).where((monthValue) {
+    return !paymentList.any((p) =>
+      p['student_id'] == student['id'] &&
+      p['month'] == monthValue &&
+      p['year'] == selectedYear &&
+      p['is_paid'] == true
+    );
+  }).toList();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Mark Payment - ${student['student_name']}"),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Month & Year dropdown
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: selectedMonth,
-                          decoration: const InputDecoration(labelText: "Month"),
-                          items: List.generate(12, (index) {
-                            final monthValue = index + 1;
-                            final monthName = [
-                              "Jan",
-                              "Feb",
-                              "Mar",
-                              "Apr",
-                              "May",
-                              "Jun",
-                              "Jul",
-                              "Aug",
-                              "Sep",
-                              "Oct",
-                              "Nov",
-                              "Dec"
-                            ][index];
-                            return DropdownMenuItem(
-                              value: monthValue,
-                              child: Text(monthName),
-                            );
-                          }),
-                          onChanged: (val) {
-                            if (val != null) selectedMonth = val;
-                          },
-                        ),
+  // ✅ If all months are paid
+  if (unpaidMonths.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ All months already paid for this year")),
+    );
+    return;
+  }
+
+  int selectedMonth = unpaidMonths.first;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text("Mark Payment - ${student['student_name']}"),
+        content: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Month & Year dropdown
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: selectedMonth,
+                        decoration: const InputDecoration(labelText: "Month"),
+                        items: unpaidMonths.map((monthValue) {
+                          final monthName = [
+                            "Jan","Feb","Mar","Apr","May","Jun",
+                            "Jul","Aug","Sep","Oct","Nov","Dec"
+                          ][monthValue - 1];
+                          return DropdownMenuItem(
+                            value: monthValue,
+                            child: Text(monthName),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) selectedMonth = val;
+                        },
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: selectedYear,
-                          decoration: const InputDecoration(labelText: "Year"),
-                          items: List.generate(5, (index) {
-                            final year = DateTime.now().year - 2 + index;
-                            return DropdownMenuItem(
-                              value: year,
-                              child: Text(year.toString()),
-                            );
-                          }),
-                          onChanged: (val) {
-                            if (val != null) selectedYear = val;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Amount
-                  TextFormField(
-                    controller: amountController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Amount"),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return "Enter amount";
-                      if (double.tryParse(value) == null)
-                        return "Enter valid number";
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Paid / Unpaid dropdown
-                  DropdownButtonFormField<String>(
-                    value: selectedStatus,
-                    decoration: const InputDecoration(labelText: "Status"),
-                    items: ["Paid", "Unpaid"].map((status) {
-                      return DropdownMenuItem(
-                        value: status,
-                        child: Text(status),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        selectedStatus = val;
-                        (context as Element).markNeedsBuild();
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Paid Date (only if Paid)
-                  TextFormField(
-                    controller: dateController,
-                    readOnly: true,
-                    enabled: selectedStatus == "Paid",
-                    decoration: const InputDecoration(
-                      labelText: "Paid Date",
-                      suffixIcon: Icon(Icons.calendar_today),
                     ),
-                    onTap: selectedStatus == "Paid"
-                        ? () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2100),
-                            );
-                            if (picked != null) {
-                              // Format as YYYY-MM-DD
-                              dateController.text =
-                                  DateFormat('yyyy-MM-dd').format(picked);
-                            }
-                          }
-                        : null,
-                    validator: (value) {
-                      if (selectedStatus == "Paid" &&
-                          (value == null || value.isEmpty)) {
-                        return "Select paid date";
-                      }
-                      return null;
-                    },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: selectedYear,
+                        decoration: const InputDecoration(labelText: "Year"),
+                        items: List.generate(5, (index) {
+                          final year = DateTime.now().year - 2 + index;
+                          return DropdownMenuItem(
+                            value: year,
+                            child: Text(year.toString()),
+                          );
+                        }),
+                        onChanged: (val) {
+                          if (val != null) selectedYear = val;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Amount
+                TextFormField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: "Amount"),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return "Enter amount";
+                    if (double.tryParse(value) == null) return "Enter valid number";
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Paid / Unpaid dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(labelText: "Status"),
+                  items: ["Paid", "Unpaid"].map((status) {
+                    return DropdownMenuItem(
+                      value: status,
+                      child: Text(status),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      selectedStatus = val;
+                      (context as Element).markNeedsBuild();
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Paid Date (only if Paid)
+                TextFormField(
+                  controller: dateController,
+                  readOnly: true,
+                  enabled: selectedStatus == "Paid",
+                  decoration: const InputDecoration(
+                    labelText: "Paid Date",
+                    suffixIcon: Icon(Icons.calendar_today),
                   ),
-                ],
-              ),
+                  onTap: selectedStatus == "Paid"
+                      ? () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            dateController.text =
+                                DateFormat('yyyy-MM-dd').format(picked);
+                          }
+                        }
+                      : null,
+                  validator: (value) {
+                    if (selectedStatus == "Paid" &&
+                        (value == null || value.isEmpty)) {
+                      return "Select paid date";
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              child: const Text("Cancel"),
-              onPressed: () => Navigator.pop(context),
-            ),
-            ElevatedButton(
-              child: const Text("Submit"),
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                final token = prefs.getString("device_token") ?? "";
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: const Text("Submit"),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final token = prefs.getString("device_token") ?? "";
 
-                if (_formKey.currentState!.validate()) {
-                  final success = await ApiService().createPayment(
-                    studentId: student['id'],
-                    month: selectedMonth, // send as int
-                    year: selectedYear, // send as int
-                    amount: double.tryParse(amountController.text) ?? 0,
-                    isPaid: selectedStatus == "Paid",
-                    paidOn: selectedStatus == "Paid" &&
-                            dateController.text.isNotEmpty
-                        ? dateController.text // "YYYY-MM-DD"
-                        : null,
-                    token: token,
+              if (_formKey.currentState!.validate()) {
+                final success = await ApiService().createPayment(
+                  studentId: student['id'],
+                  month: selectedMonth,
+                  year: selectedYear,
+                  amount: double.tryParse(amountController.text) ?? 0,
+                  isPaid: selectedStatus == "Paid",
+                  paidOn: selectedStatus == "Paid" &&
+                          dateController.text.isNotEmpty
+                      ? dateController.text
+                      : null,
+                  token: token,
+                );
+
+                if (success) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("✅ Payment saved")),
                   );
-
-                  if (success) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("✅ Payment saved")),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("❌ Failed to save payment")),
-                    );
-                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(ApiService.lastError ?? "❌ Failed to save payment")),
+                  );
                 }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   void _showEditDialog(BuildContext context, Map<String, dynamic> route) {
     final TextEditingController orderController =

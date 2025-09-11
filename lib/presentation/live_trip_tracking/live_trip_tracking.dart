@@ -379,61 +379,63 @@ void initState() {
 
   /// Fetch vehicle's latest location from API
   Future<void> _fetchVehicleLocation() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('device_token');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('device_token');
 
-      if (token == null || token.isEmpty) {
-        setState(() => _status = 'No device token found.');
-        return;
-      }
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() => _status = 'No device token found.');
+      return;
+    }
 
-      final response = await http.get(
-        Uri.parse(
-          'https://myblogcrud.pythonanywhere.com/api/vehicle/${widget.vehicleId}/location',
-        ),
-        headers: {
-          'Authorization': 'Token $token',
-          'Accept': 'application/json',
-        },
-      );
+    final response = await http.get(
+      Uri.parse('https://blueeyesholidays.com/api/api/vehicle/${widget.vehicleId}/location'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Accept': 'application/json',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print("location$data");
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-        if (data['latitude'] != null && data['longitude'] != null) {
-          final double? lat = double.tryParse(data['latitude'].toString());
-          final double? lng = double.tryParse(data['longitude'].toString());
+      if (data['latitude'] != null && data['longitude'] != null) {
+        final lat = double.tryParse(data['latitude'].toString());
+        final lng = double.tryParse(data['longitude'].toString());
 
-          if (lat != null && lng != null) {
-            final newPosition = LatLng(lat, lng);
+        if (lat != null && lng != null) {
+          final newPosition = LatLng(lat, lng);
 
-            setState(() {
-              _currentPosition = newPosition;
-              _status = 'Location updated';
-            });
+          if (!mounted) return;
+          setState(() {
+            _currentPosition = newPosition;
+            _status = 'Location updated';
+          });
 
-            // Move camera if map is ready
-            if (_mapController != null) {
-              _mapController!.animateCamera(
-                CameraUpdate.newLatLng(newPosition),
-              );
-            }
-          } else {
-            setState(() => _status = 'Invalid coordinates from server');
+          if (_mapController != null) {
+            _mapController!.animateCamera(
+              CameraUpdate.newLatLng(newPosition),
+            );
           }
         } else {
-          setState(() => _status = 'No location data found');
+          if (!mounted) return;
+          setState(() => _status = 'Invalid coordinates from server');
         }
       } else {
-        setState(() =>
-            _status = 'Failed to fetch location: ${response.statusCode}');
+        if (!mounted) return;
+        setState(() => _status = 'No location data found');
       }
-    } catch (e) {
-      setState(() => _status = 'Error: $e');
+    } else {
+      if (!mounted) return;
+      setState(() => _status = 'Failed to fetch location: ${response.statusCode}');
     }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _status = 'Error: $e');
   }
+}
+
 
   @override
   void dispose() {

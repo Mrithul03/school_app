@@ -150,7 +150,9 @@ class LocationTracker {
 
   LocationTracker({
     required this.vehicleId,
-    this.baseUrl = 'https://myblogcrud.pythonanywhere.com',
+    this.baseUrl = 
+    // 'https://myblogcrud.pythonanywhere.com',
+    'https://blueeyesholidays.com/api'
   });
 
   /// ✅ Check location & notification permissions
